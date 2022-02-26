@@ -1,0 +1,67 @@
+--------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\fertility-data\fertility-replication-sept-revision\output\logs\fig_2f.log
+  log type:  text
+ opened on:  15 Sep 2021, 01:51:15
+
+. 
+. *From NCHS Natality Microdata, Merge in SEER Composition Data
+. use $ft_data_dir\nchs\nchs_births_pop_1990_2019, clear
+
+. cap drop _merge
+
+. merge 1:1 stname year using $ft_data_dir\pop\age_race_comp_seer.dta
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                             1,530  (_merge==3)
+    -----------------------------------------
+
+. 
+. *aggregate to national/year
+. gen pop2044 = pop2024 + pop2534 + pop3544
+
+. collapse (sum) numbirth_first* numbirth_second* numbirth_third* numbirth_fourth* ///
+> pop1544 pop2044, by(year)
+
+. 
+. foreach var in firstbirth secondbirth thirdbirth fourthbirth {
+  2. gen brate_`var' = numbirth_`var'/pop1544*1000
+  3. }
+
+. 
+. 
+. rename brate_fourthbirth brate_fourthplusbirth
+
+. 
+. label var brate_firstbirth "Parity 1 Birth Rate"
+
+. label var brate_secondbirth "Parity 2 Birth Rate"
+
+. label var brate_thirdbirth "Parity 3 Birth Rate"
+
+. label var brate_fourthplusbirth "Parity 4+ Birth Rate"
+
+. 
+. twoway line brate_firstbirth brate_secondbirth brate_thirdbirth brate_fourthplusbirth year, ///
+>    title("Birth Rates by Parity, 15-44") ylabel(, angle(0))
+(note: scheme plain not found, using s2color)
+
+.    graph export $ft_output_dir/fig_2f.png, replace
+(file D:\fertility-data\fertility-replication-sept-revision\output/fig_2f.png written in PNG forma
+> t)
+
+. 
+. 
+. export delimited year brate_firstbirth brate_secondbirth brate_thirdbirth ///
+>  brate_fourthplusbirth using $ft_output_dir/fig_2f.csv, replace
+file D:\fertility-data\fertility-replication-sept-revision\output/fig_2f.csv saved
+
+. 
+. log close
+      name:  <unnamed>
+       log:  D:\fertility-data\fertility-replication-sept-revision\output\logs\fig_2f.log
+  log type:  text
+ closed on:  15 Sep 2021, 01:51:16
+--------------------------------------------------------------------------------------------------

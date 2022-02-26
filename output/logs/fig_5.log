@@ -1,0 +1,184 @@
+--------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\fertility-data\fertility-replication-sept-revision\output\logs\fig_5.log
+  log type:  text
+ opened on:  15 Sep 2021, 01:51:58
+
+. 
+. *Format SEER data for this use
+. use $ft_data_dir\pop\agecomp-seer.dta, clear
+
+. keep stname year fem1* fem2* fem3* fem4*
+
+. drop fem1519 fem2034 fem3544
+
+. collapse (sum) fem*, by (year)
+
+. reshape long fem, i(year) j(mage)
+(note: j = 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 
+> 44)
+
+Data                               wide   ->   long
+-----------------------------------------------------------------------------
+Number of obs.                       40   ->    1200
+Number of variables                  31   ->       3
+j variable (30 values)                    ->   mage
+xij variables:
+                  fem15 fem16 ... fem44   ->   fem
+-----------------------------------------------------------------------------
+
+. rename fem pop
+
+. 
+. gen cohort = year-mage
+
+. gen cohort2 = .
+(1200 missing values generated)
+
+. 
+. replace cohort2 = 1 if cohort >= 1968 & cohort <=1972
+(150 real changes made)
+
+. replace cohort2 = 2 if cohort >= 1973 & cohort <=1977
+(147 real changes made)
+
+. replace cohort2 = 3 if cohort >= 1978 & cohort <=1982
+(125 real changes made)
+
+. replace cohort2 = 4 if cohort >= 1983 & cohort <=1987
+(100 real changes made)
+
+. replace cohort2 = 5 if cohort >= 1988 & cohort <=1992
+(75 real changes made)
+
+. replace cohort2 = 6 if cohort >= 1993 & cohort <=1997
+(50 real changes made)
+
+. drop if cohort2==.
+(553 observations deleted)
+
+. 
+. collapse (sum) pop, by (cohort2 mage)
+
+. 
+. save $ft_data_dir\pop\age_cohort_long_seer, replace
+file D:\fertility-data\fertility-replication-sept-revision\data\pop\age_cohort_long_seer.dta saved
+
+. 
+. 
+. *Start with NCHS Cohort Data, merge in SEER population data
+. use $ft_data_dir\nchs\nchs_cohort_analysis, clear
+
+. merge 1:1 cohort2 mage using $ft_data_dir\pop\age_cohort_long_seer.dta
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                               138  (_merge==3)
+    -----------------------------------------
+
+. drop _merge 
+
+. 
+. gen brate = numbirth/pop*1000
+
+. 
+. sort cohort2 mage
+
+. by cohort2: gen cum_brate = sum(brate)/1000
+
+. label var brate "Births per Female"
+
+. label var cum_brate "Cumulative Births per Female"
+
+. label var mage "Mother's Age"
+
+. 
+. keep mage cohort2 brate cum_brate
+
+. 
+. gen years_born = ""
+(138 missing values generated)
+
+. replace years_born = "1968-72" if cohort==1
+years_born was str1 now str7
+(30 real changes made)
+
+. replace years_born = "1973-77" if cohort==2
+(30 real changes made)
+
+. replace years_born = "1978-82" if cohort==3
+(27 real changes made)
+
+. replace years_born = "1983-87" if cohort==4
+(22 real changes made)
+
+. replace years_born = "1988-92" if cohort==5
+(17 real changes made)
+
+. replace years_born = "1993-97" if cohort==6
+(12 real changes made)
+
+. 
+. gen years_2025 = ""
+(138 missing values generated)
+
+. replace years_2025 = "1988-92" if cohort==1
+years_2025 was str1 now str7
+(30 real changes made)
+
+. replace years_2025 = "1993-97" if cohort==2
+(30 real changes made)
+
+. replace years_2025 = "1998-02" if cohort==3
+(27 real changes made)
+
+. replace years_2025 = "2003-07" if cohort==4
+(22 real changes made)
+
+. replace years_2025 = "2008-12" if cohort==5
+(17 real changes made)
+
+. replace years_2025 = "2013-17" if cohort==6
+(12 real changes made)
+
+. 
+. keep mage cohort2 brate cum_brate
+
+. reshape wide brate cum_brate, i(mage) j(cohort2)
+(note: j = 1 2 3 4 5 6)
+
+Data                               long   ->   wide
+-----------------------------------------------------------------------------
+Number of obs.                      138   ->      30
+Number of variables                   4   ->      13
+j variable (6 values)           cohort2   ->   (dropped)
+xij variables:
+                                  brate   ->   brate1 brate2 ... brate6
+                              cum_brate   ->   cum_brate1 cum_brate2 ... cum_brate6
+-----------------------------------------------------------------------------
+
+. 
+. *CDF - cumulative births
+. twoway line cum_brate1 cum_brate2 cum_brate3 cum_brate4 cum_brate5 mage, ///
+> ylabel(,angle(0)) ytitle("Births per Woman") title("Lifetime Fertility, by Mother's Birth Cohort
+> : US") ///
+> legend(subtitle("Birth Cohort") region(lstyle(none)) label(1 "1968-72") label(2 "1973-77") label
+> (3 "1978-82") ///
+>  label(4 "1983-87") label(5 "1988-92") label(6 "1993-97")) name(cdf2, replace) 
+(note: scheme plain not found, using s2color)
+
+. graph export $ft_data_dir\fig_5.png, replace
+(file D:\fertility-data\fertility-replication-sept-revision\data\fig_5.png written in PNG format)
+
+. 
+. export delimited $ft_output_dir\fig_5.csv, replace
+file D:\fertility-data\fertility-replication-sept-revision\output\fig_5.csv saved
+
+. 
+. log close
+      name:  <unnamed>
+       log:  D:\fertility-data\fertility-replication-sept-revision\output\logs\fig_5.log
+  log type:  text
+ closed on:  15 Sep 2021, 01:52:00
+--------------------------------------------------------------------------------------------------

@@ -1,0 +1,586 @@
+--------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\fertility-data\fertility-replication-sept-revision\output\logs\fig_2c.log
+  log type:  text
+ opened on:  15 Sep 2021, 01:50:33
+
+. 
+. tempfile temp1
+
+. tempfile temp2
+
+. tempfile temp3
+
+. tempfile temp4
+
+. 
+. 
+. ******* (1/3) Numerator: Births, Hispanics 15-44 by Native/Foreign x Mexican/Other ********
+. *From NCHS Natality Microdata
+. use $ft_data_dir\nchs\nchs_births_pop_1990_2019, clear
+
+. keep if year>=1990 & year<=2019 & year!=.
+(0 observations deleted)
+
+. drop if stname== "AB" | stname== "BC" | stname== "MB" | stname == "NB" | stname== "NS" | stname 
+> == "ON" | stname == "QC" | stname== "SK" | stname== "XX"         
+(0 observations deleted)
+
+. cap drop pop2044
+
+. drop pop*
+
+. 
+. collapse (sum) numbirth_hispforb_other numbirth_hispforb_mex numbirth_hispnativeb_nonmex ///
+> numbirth_hisp_mexican_nativeb , by(year)
+
+. 
+. save `temp1'
+file C:\Users\luke.pardue\AppData\Local\Temp\ST_00000001.tmp saved
+
+. 
+. ******* (2/3) Denominator: Hispanic Pop 15-44 by Native/Foreign x Mexican/Other ********
+. 
+. *USE CPS 1990-2019 (Hispanic Origin Only Recorded 1994-)
+. use $ft_data_dir\hisp\cps_19902019, clear
+
+. 
+. *drop health insurance supplement in 2014
+. drop if hflag==1
+(60141 observations deleted)
+
+. 
+. *keep only females
+. drop if sex==1
+(2683163 observations deleted)
+
+. 
+. *keep 15-44
+. drop if age<15 | age>44
+(1651063 observations deleted)
+
+. 
+. *education codes
+. gen edgrp = ""
+(1206017 missing values generated)
+
+. replace edgrp = "lesshs" if educ<=71 // includes 12 grades 1992 recode
+edgrp was str1 now str6
+(267312 real changes made)
+
+. replace edgrp = "hsgrad" if educ>=72 & educ<=73
+(311348 real changes made)
+
+. replace edgrp = "somecoll" if educ>=80 & educ<=100
+edgrp was str6 now str8
+(342837 real changes made)
+
+. replace edgrp = "colgrad" if educ>100
+(284520 real changes made)
+
+. assert edgrp!= ""
+
+. 
+. *education codes
+. gen agegrp = ""
+(1206017 missing values generated)
+
+. replace agegrp = "1519" if age<=19 
+agegrp was str1 now str4
+(204923 real changes made)
+
+. replace agegrp = "2024" if age>19 & age<=24
+(169997 real changes made)
+
+. replace agegrp = "2534" if age>24 & age<=34
+(394891 real changes made)
+
+. replace agegrp = "3544" if age>34
+(436206 real changes made)
+
+. assert agegrp!= ""
+
+. 
+. *education codes 6 grps  
+. gen agegrp6 = ""
+(1206017 missing values generated)
+
+. replace agegrp6 = "1519" if age<=19 
+agegrp6 was str1 now str4
+(204923 real changes made)
+
+. replace agegrp6 = "2024" if age>19 & age<=24
+(169997 real changes made)
+
+. replace agegrp6 = "2529" if age>24 & age<=29
+(186476 real changes made)
+
+. replace agegrp6 = "3034" if age>29 & age<=34
+(208415 real changes made)
+
+. replace agegrp6 = "3539" if age>34 & age<=39
+(218449 real changes made)
+
+. replace agegrp6 = "4044" if age>39
+(217757 real changes made)
+
+. assert agegrp6!= ""
+
+. 
+. *married/unmarried 
+. gen married = ""
+(1206017 missing values generated)
+
+. replace married = "married" if marst==1 | marst==2
+married was str1 now str7
+(567474 real changes made)
+
+. replace married = "unmarried" if marst>2
+married was str7 now str9
+(638543 real changes made)
+
+. assert married!=""
+
+. 
+. *raceeth 
+. gen raceeth = ""
+(1206017 missing values generated)
+
+. replace raceeth = "whitenh" if race==100 & hisp==0
+raceeth was str1 now str7
+(753953 real changes made)
+
+. replace raceeth = "blacknh" if race==200 & hisp==0
+(137509 real changes made)
+
+. replace raceeth = "hisp" if hisp>0
+(222036 real changes made)
+
+. *drop if raceeth==""
+. 
+. *nativity 
+. gen native = "nativeborn" if nativity>=1 & nativity<=4
+(324657 missing values generated)
+
+. replace native = "foreignborn" if nativity==5
+native was str10 now str11
+(173299 real changes made)
+
+. replace native = "" if nativity==0
+(0 real changes made)
+
+. 
+. *mexican (not BORN IN Mexico)
+. gen mexican = "mexican" if hisp>=100 & hisp<=108
+(1070668 missing values generated)
+
+. replace mexican = "other" if hisp>0 & mexican!="mexican"
+(86687 real changes made)
+
+. 
+. *from mexico 
+. gen mexicob = "mexico" if native == "foreignborn" & bpl==20000
+(1150814 missing values generated)
+
+. replace mexicob = "other" if native == "foreignborn" & bpl!=20000
+(118096 real changes made)
+
+. assert mexicob == "mexico" | mexicob == "other" if native=="foreignborn"
+
+.  
+.  
+. preserve 
+
+. 
+. drop if raceeth!="hisp" | native==""
+(1007179 observations deleted)
+
+. 
+. *collapse to number by state-year 
+. collapse (sum) pop=asecwt, by(state year native)
+
+. 
+. statastates, fips(statefip)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                             2,715  (_merge==3)
+    -----------------------------------------
+
+. drop _merge state_name statefip
+
+. rename state_abbrev stname
+
+. 
+. *reshape wide  
+. reshape wide pop, i(year stname) j(native) string
+(note: j = foreignborn nativeborn)
+
+Data                               long   ->   wide
+-----------------------------------------------------------------------------
+Number of obs.                     2715   ->    1377
+Number of variables                   4   ->       4
+j variable (2 values)            native   ->   (dropped)
+xij variables:
+                                    pop   ->   popforeignborn popnativeborn
+-----------------------------------------------------------------------------
+
+. 
+. recode pop* (. = 0)
+(popforeignborn: 37 changes made)
+(popnativeborn: 2 changes made)
+
+. egen total = rowtotal(pop*)
+
+. 
+. 
+. foreach var in foreignborn nativeborn {
+  2. gen pct_`var'  = pop`var'/total
+  3. }
+
+. 
+. 
+. merge 1:1 stname year using $ft_data_dir\pop\age_race_comp_seer.dta , keepusing(pophispanic1544)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                           255
+        from master                        51  (_merge==1)
+        from using                        204  (_merge==2)
+
+    matched                             1,326  (_merge==3)
+    -----------------------------------------
+
+. tab year if _merge!=3
+
+Survey year |      Freq.     Percent        Cum.
+------------+-----------------------------------
+       1990 |         51       20.00       20.00
+       1991 |         51       20.00       40.00
+       1992 |         51       20.00       60.00
+       1993 |         51       20.00       80.00
+       2020 |         51       20.00      100.00
+------------+-----------------------------------
+      Total |        255      100.00
+
+. keep if _merge==3 // all unmerged are in years 1990-1999 and 2020 (not needed)
+(255 observations deleted)
+
+. drop _merge
+
+. 
+. keep stname year pct* pophispanic1544
+
+. 
+. foreach var in foreignborn nativeborn {
+  2. gen pop_`var'  = pct_`var'*pophispanic1544
+  3. }
+
+. 
+. 
+. keep stname year pop* 
+
+. drop if year<1990 | year>2019
+(0 observations deleted)
+
+. tab year
+
+Survey year |      Freq.     Percent        Cum.
+------------+-----------------------------------
+       1994 |         51        3.85        3.85
+       1995 |         51        3.85        7.69
+       1996 |         51        3.85       11.54
+       1997 |         51        3.85       15.38
+       1998 |         51        3.85       19.23
+       1999 |         51        3.85       23.08
+       2000 |         51        3.85       26.92
+       2001 |         51        3.85       30.77
+       2002 |         51        3.85       34.62
+       2003 |         51        3.85       38.46
+       2004 |         51        3.85       42.31
+       2005 |         51        3.85       46.15
+       2006 |         51        3.85       50.00
+       2007 |         51        3.85       53.85
+       2008 |         51        3.85       57.69
+       2009 |         51        3.85       61.54
+       2010 |         51        3.85       65.38
+       2011 |         51        3.85       69.23
+       2012 |         51        3.85       73.08
+       2013 |         51        3.85       76.92
+       2014 |         51        3.85       80.77
+       2015 |         51        3.85       84.62
+       2016 |         51        3.85       88.46
+       2017 |         51        3.85       92.31
+       2018 |         51        3.85       96.15
+       2019 |         51        3.85      100.00
+------------+-----------------------------------
+      Total |      1,326      100.00
+
+. save `temp2', replace 
+(note: file C:\Users\luke.pardue\AppData\Local\Temp\ST_00000002.tmp not found)
+file C:\Users\luke.pardue\AppData\Local\Temp\ST_00000002.tmp saved
+
+. 
+. restore
+
+.  
+. 
+. preserve
+
+. 
+. drop if raceeth!="hisp" | native!="foreignborn"
+(1112108 observations deleted)
+
+. 
+. *collapse to number by state-year 
+. collapse (sum) pop=asecwt, by(state year mexicob) 
+
+. 
+. statastates, fips(statefip)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                             2,538  (_merge==3)
+    -----------------------------------------
+
+. drop _merge state_name statefip
+
+. rename state_abbrev stname
+
+. 
+. *reshape wide  
+. reshape wide pop, i(year stname) j(mexicob) string
+(note: j = mexico other)
+
+Data                               long   ->   wide
+-----------------------------------------------------------------------------
+Number of obs.                     2538   ->    1340
+Number of variables                   4   ->       4
+j variable (2 values)           mexicob   ->   (dropped)
+xij variables:
+                                    pop   ->   popmexico popother
+-----------------------------------------------------------------------------
+
+. recode pop* (. = 0)
+(popmexico: 100 changes made)
+(popother: 42 changes made)
+
+. egen total = rowtotal(pop*) // this is pop foreignborn
+
+. 
+. 
+. recode pop* (. = 0) // in some years there are no foreign-born hispanics in certain states (VT, 
+> WV, MT)
+(popmexico: 0 changes made)
+(popother: 0 changes made)
+
+. foreach var in mexico other {
+  2. gen pct_`var'  = pop`var'/total // these are percents of foreign born, need number foreignbor
+> n hisp from previous calculation
+  3. }
+
+. 
+. *want pop non-native to get pop non-native within each group
+. drop if year<1990 | year>2019
+(51 observations deleted)
+
+. merge 1:1 stname year using `temp2', keepusing(pop_foreignborn)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            37
+        from master                         0  (_merge==1)
+        from using                         37  (_merge==2)
+
+    matched                             1,289  (_merge==3)
+    -----------------------------------------
+
+. recode pct* (. = 0) // in some years there are no foreign-born hispanics in certain states (VT, 
+> WV, MT)
+(pct_mexico: 37 changes made)
+(pct_other: 37 changes made)
+
+. 
+. keep stname year pct* pop_foreignborn
+
+. 
+. foreach var in mexico other {
+  2. gen pop_`var'_hispforb  = pct_`var'*pop_foreignborn
+  3. }
+
+. 
+. 
+. keep stname year pop* 
+
+. drop if year<1990 | year>2019
+(0 observations deleted)
+
+. save `temp3', replace
+(note: file C:\Users\luke.pardue\AppData\Local\Temp\ST_00000003.tmp not found)
+file C:\Users\luke.pardue\AppData\Local\Temp\ST_00000003.tmp saved
+
+. 
+. restore
+
+.  
+. 
+. drop if raceeth!="hisp" | native!="nativeborn"
+(1101088 observations deleted)
+
+. 
+. *collapse to number by state-year 
+. collapse (sum) pop=asecwt, by(state year mexican)
+
+. 
+. statastates, fips(statefip)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                             2,664  (_merge==3)
+    -----------------------------------------
+
+. drop _merge state_name statefip
+
+. rename state_abbrev stname
+
+. 
+. *reshape wide  
+. reshape wide pop, i(year stname) j(mexican) string
+(note: j = mexican other)
+
+Data                               long   ->   wide
+-----------------------------------------------------------------------------
+Number of obs.                     2664   ->    1375
+Number of variables                   4   ->       4
+j variable (2 values)           mexican   ->   (dropped)
+xij variables:
+                                    pop   ->   popmexican popother
+-----------------------------------------------------------------------------
+
+. 
+. recode pop* (. = 0)
+(popmexican: 65 changes made)
+(popother: 21 changes made)
+
+. egen total = rowtotal(pop*)
+
+. 
+. 
+. foreach var in mexican other {
+  2. gen pct_`var'  = pop`var'/total
+  3. }
+
+. 
+. 
+. drop if year<1990 | year>2019
+(51 observations deleted)
+
+. merge 1:1 stname year using `temp2', keepusing(pop_nativeborn)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             2
+        from master                         0  (_merge==1)
+        from using                          2  (_merge==2)
+
+    matched                             1,324  (_merge==3)
+    -----------------------------------------
+
+. recode pct* (. = 0) // in some years there are no foreign-born hispanics in certain states (VT, 
+> WV, MT)
+(pct_mexican: 2 changes made)
+(pct_other: 2 changes made)
+
+. 
+. keep stname year pct* pop_nativeborn
+
+. 
+. foreach var in mexican other {
+  2. gen pop_`var'  = pct_`var'*pop_nativeborn
+  3. }
+
+. 
+. 
+. keep stname year pop* 
+
+. drop if year<1990 | year>2019
+(0 observations deleted)
+
+. save `temp4', replace
+(note: file C:\Users\luke.pardue\AppData\Local\Temp\ST_00000004.tmp not found)
+file C:\Users\luke.pardue\AppData\Local\Temp\ST_00000004.tmp saved
+
+. 
+.  
+.  
+. ******* (3/3) MERGE BIRTHS AND POP TOGHETHER TO GET BIRTH RATES *******
+. 
+. *merge in hisp foreign by mexican, other (pop_other_hispforb pop_mexico_hispforb)
+. use `temp3'
+
+. 
+. *merge in hisp native by mexican, other (pop_mexican pop_other)
+. merge 1:1 stname year using `temp4'
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                             1,326  (_merge==3)
+    -----------------------------------------
+
+. 
+. collapse (sum) pop_other_hispforb pop_mexico_hispforb pop_mexican pop_other, by(year)
+
+. 
+. *merge in births data from nchs
+. merge 1:1 year using `temp1'
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             4
+        from master                         0  (_merge==1)
+        from using                          4  (_merge==2)
+
+    matched                                26  (_merge==3)
+    -----------------------------------------
+
+. 
+.         gen brate_hispforb_other = numbirth_hispforb_other/pop_other_hispforb*1000
+(4 missing values generated)
+
+.         gen brate_hispforb_mex = numbirth_hispforb_mex/pop_mexico_hispforb*1000
+(4 missing values generated)
+
+.         gen brate_hispnativeb_nonmex =  numbirth_hispnativeb_nonmex/pop_other*1000
+(4 missing values generated)
+
+.         gen brate_hispnativeb_mex =  numbirth_hisp_mexican_nativeb/pop_mexican*1000
+(4 missing values generated)
+
+.         
+.         keep year brate*
+
+.         
+. twoway line brate_hispforb_other brate_hispforb_mex brate_hispnativeb_nonmex brate_hispnativeb_m
+> ex year
+(note: scheme plain not found, using s2color)
+
+. 
+. graph export $ft_output_dir\fig_2c.png, replace
+(file D:\fertility-data\fertility-replication-sept-revision\output\fig_2c.png written in PNG forma
+> t)
+
+. 
+. export delimited $ft_output_dir/fig_2c.csv, replace 
+file D:\fertility-data\fertility-replication-sept-revision\output/fig_2c.csv saved
+
+. 
+. log close
+      name:  <unnamed>
+       log:  D:\fertility-data\fertility-replication-sept-revision\output\logs\fig_2c.log
+  log type:  text
+ closed on:  15 Sep 2021, 01:51:03
+--------------------------------------------------------------------------------------------------

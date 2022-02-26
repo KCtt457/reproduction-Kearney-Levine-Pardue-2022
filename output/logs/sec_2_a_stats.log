@@ -1,0 +1,172 @@
+--------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\fertility-data\fertility-replication-sept-revision\output\logs\sec_2_a_stats.log
+  log type:  text
+ opened on:  15 Sep 2021, 01:52:00
+
+. 
+. *ACS Data on Hispanic Population, by Nativity
+. use $ft_data_dir\sec_2a\hisp_nativity.dta, clear
+
+. 
+. keep if age >= 15 & age <= 44
+(3916291 observations deleted)
+
+. keep if sex == 2
+(1149928 observations deleted)
+
+. gen native = bpl <= 56
+
+. gen married = marst <= 2
+
+. 
+. gen educcat = 1 if educd <= 61
+(929300 missing values generated)
+
+. replace educcat = 2 if educd == 63 | educd == 64
+(110311 real changes made)
+
+. replace educcat = 3 if educd >= 65 & educd <= 100
+(355791 real changes made)
+
+. replace educcat = 4 if educd > 100 & educd <= 116
+(332759 real changes made)
+
+. 
+. label define educlbl 1 "hs drop" 2 "hs grad" 3 "some college" 4 "college grad"
+
+. label values educcat educlbl
+
+. 
+. gen hispanic = hispan > 0
+
+. gen mexican = hispan == 1
+
+. 
+. 
+. 
+. *2007 stats
+. preserve
+
+. keep if year == 2007
+(573775 observations deleted)
+
+. 
+. *tab hispanic native [weight=perwt]
+. tab hispanic native [weight=perwt], row nofr
+(frequency weights assumed)
+
+           |        native
+  hispanic |         0          1 |     Total
+-----------+----------------------+----------
+         0 |     10.47      89.53 |    100.00 
+         1 |     50.73      49.27 |    100.00 
+-----------+----------------------+----------
+     Total |     17.21      82.79 |    100.00 
+
+
+. 
+. *tab mexican native [weight=perwt]
+. tab mexican native [weight=perwt], row nofr
+(frequency weights assumed)
+
+           |        native
+   mexican |         0          1 |     Total
+-----------+----------------------+----------
+         0 |     13.29      86.71 |    100.00 
+         1 |     50.04      49.96 |    100.00 
+-----------+----------------------+----------
+     Total |     17.21      82.79 |    100.00 
+
+
+. 
+. tab married [weight=perwt]
+(frequency weights assumed)
+
+    married |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 | 36,149,376       58.21       58.21
+          1 | 25,956,505       41.79      100.00
+------------+-----------------------------------
+      Total | 62,105,881      100.00
+
+. 
+. tab educcat if age >= 20 [weight=perwt]
+(frequency weights assumed)
+
+     educcat |      Freq.     Percent        Cum.
+-------------+-----------------------------------
+     hs drop |  5,746,298       15.06       15.06
+some college | 17,528,349       45.94       61.01
+college grad | 14,877,091       38.99      100.00
+-------------+-----------------------------------
+       Total | 38,151,738      100.00
+
+. 
+. 
+. 
+. *2018 stats
+. restore
+
+. keep if year == 2018
+(569207 observations deleted)
+
+.  
+. *tab hispanic native [weight=perwt]
+. tab hispanic native [weight=perwt], row nofr
+(frequency weights assumed)
+
+           |        native
+  hispanic |         0          1 |     Total
+-----------+----------------------+----------
+         0 |     12.14      87.86 |    100.00 
+         1 |     38.27      61.73 |    100.00 
+-----------+----------------------+----------
+     Total |     17.61      82.39 |    100.00 
+
+
+. 
+. *tab mexican native [weight=perwt]
+. tab mexican native [weight=perwt], row nofr
+(frequency weights assumed)
+
+           |        native
+   mexican |         0          1 |     Total
+-----------+----------------------+----------
+         0 |     15.34      84.66 |    100.00 
+         1 |     32.63      67.37 |    100.00 
+-----------+----------------------+----------
+     Total |     17.61      82.39 |    100.00 
+
+
+. 
+. tab married [weight=perwt]
+(frequency weights assumed)
+
+    married |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 | 40,474,867       62.97       62.97
+          1 | 23,802,448       37.03      100.00
+------------+-----------------------------------
+      Total | 64,277,315      100.00
+
+. 
+. tab educcat if age >= 20 [weight=perwt]
+(frequency weights assumed)
+
+     educcat |      Freq.     Percent        Cum.
+-------------+-----------------------------------
+     hs drop |  4,373,605        8.12        8.12
+     hs grad | 11,536,277       21.41       29.53
+some college | 18,423,877       34.20       63.73
+college grad | 19,541,966       36.27      100.00
+-------------+-----------------------------------
+       Total | 53,875,725      100.00
+
+. 
+. log close
+      name:  <unnamed>
+       log:  D:\fertility-data\fertility-replication-sept-revision\output\logs\sec_2_a_stats.log
+  log type:  text
+ closed on:  15 Sep 2021, 01:52:04
+--------------------------------------------------------------------------------------------------

@@ -1,0 +1,105 @@
+--------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\fertility-data\fertility-replication-sept-revision\output\logs\fig_3.log
+  log type:  text
+ opened on:  15 Sep 2021, 01:51:48
+
+. 
+. tempfile temp1
+
+. tempfile temp2
+
+. tempfile temp3
+
+. tempfile temp4
+
+. 
+. 
+. *Birth Data: NCHS Microdata
+. use $ft_data_dir\nchs\nchs_births_pop_1990_2019, clear
+
+. keep if (year>=2004 & year<=2008) | (year>=2015 & year<=2019) & year!=.
+(1020 observations deleted)
+
+. drop if inlist(stname,"AB","BC","MB","NB","NS","ON","QC","SK","XX")
+(0 observations deleted)
+
+. collapse (sum) numbirth1544, by(stname year)
+
+. 
+. *import delimited $ft_data_dir\map\state_births_04_19.csv, clear
+. save `temp1', replace 
+(note: file C:\Users\luke.pardue\AppData\Local\Temp\ST_00000001.tmp not found)
+file C:\Users\luke.pardue\AppData\Local\Temp\ST_00000001.tmp saved
+
+. 
+. *Pop Data: CDC SEER
+. use $ft_data_dir\pop\age_race_comp_seer.dta, clear
+
+. gen pop1544 = pop1519 + pop2034 + pop3544
+
+. keep if (year>=2004 & year<=2008) | (year>=2015 & year<=2019) & year!=.
+(1020 observations deleted)
+
+. collapse (sum) pop1544, by(stname year)
+
+. 
+. *Merge Births and Pop Data, Collapse by 2004-2008 & 2015-2019
+. merge 1:1 stname year using `temp1'
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                               510  (_merge==3)
+    -----------------------------------------
+
+. 
+. gen year2 = 2004 if (year>=2004 & year<=2008) 
+(255 missing values generated)
+
+. replace year2 = 2019 if (year>=2015 & year<=2019) 
+(255 real changes made)
+
+. 
+. *collapse by state, year2
+. collapse (sum) numbirth1544 (sum) pop1544, by(stname year2)
+
+. 
+. rename year2 year
+
+. *rename numbirth_* numbirth*
+. 
+. ***** MAP DELCINES BY STATE
+. gen brate1544_thsnds = numbirth1544/pop1544*1000
+
+. bys stname: gen brate1544_thsnds_2015_19 = brate1544_thsnds[_N]
+
+. gen brate1544_thsnds_ch = (brate1544_thsnds_2015_19 - brate1544_thsnds) if year==2004
+(51 missing values generated)
+
+. gen brate1544_thsnds_ch_pct = 100*(brate1544_thsnds_2015_19 - brate1544_thsnds)/brate1544_thsnds
+>  if year==2004
+(51 missing values generated)
+
+. gen state=stname
+
+. 
+. maptile brate1544_thsnds_ch if year==2004, geo(state) revcolor cutvalues(-10 -5 0)  ///
+>   twopt(title("Change in Average Birth Rates by State, 2004-2008 to 2015-2019") ///
+>  legend(title("Change in Birth Rate", size(small)) ///
+>  label(5 "0 - 8") label(4 "-5 - 0") label(3 "-10 - -5") ///
+>  label(2 "-22 - -10")) /// label(2 "-22 - -12")) ///
+>  note("Notes: Birth Rates are calculated among women aged 15-44." ///
+>  "Source: Birth data from NCHS Vital Statistics. Population Data from CDC SEER"))
+
+. graph export $ft_output_dir/fig_3.png, replace
+(file D:\fertility-data\fertility-replication-sept-revision\output/fig_3.png written in PNG format
+> )
+
+. 
+. export delimited stname brate1544_thsnds_ch_pct if year==2004 using $ft_output_dir/fig_3.csv, re
+> place
+file D:\fertility-data\fertility-replication-sept-revision\output/fig_3.csv saved
+
+. 
+. cap log close

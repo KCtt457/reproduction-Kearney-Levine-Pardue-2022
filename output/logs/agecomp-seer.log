@@ -1,0 +1,199 @@
+--------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\fertility-data\fertility-replication-sept-revision\output\logs\agecomp-seer.log
+  log type:  text
+ opened on:  15 Sep 2021, 00:45:36
+
+. 
+. *Population data for 1990 - 2019
+. infix int year 1-4 str stname 5-6 int stfips 7-8 ///
+> int countyfips 9-11 int registry 12-13 int race 14 int hispanic 15 ///
+> int sex 16 int age 17-18 pop 19-26 using $ft_data_dir\pop\us.1990_2019.singleages.txt, clear
+(62634670 observations read)
+
+. 
+. drop if sex == 1  // keep only females
+(31337946 observations deleted)
+
+. drop if stname == "KR" // Special Cells for Hurricane Katrina Evacuees
+(0 observations deleted)
+
+. drop if age<15 | age>44
+(19227251 observations deleted)
+
+. drop if year<1980
+(0 observations deleted)
+
+. 
+. forvalues i = 15(1)44{
+  2. gen pop`i' = pop if age == `i'
+  3. }
+(11636413 missing values generated)
+(11649720 missing values generated)
+(11648505 missing values generated)
+(11650296 missing values generated)
+(11654749 missing values generated)
+(11647044 missing values generated)
+(11666333 missing values generated)
+(11669563 missing values generated)
+(11673196 missing values generated)
+(11673113 missing values generated)
+(11660597 missing values generated)
+(11674329 missing values generated)
+(11672366 missing values generated)
+(11673009 missing values generated)
+(11670790 missing values generated)
+(11656166 missing values generated)
+(11673734 missing values generated)
+(11672927 missing values generated)
+(11673437 missing values generated)
+(11672239 missing values generated)
+(11658877 missing values generated)
+(11673063 missing values generated)
+(11673929 missing values generated)
+(11675624 missing values generated)
+(11674672 missing values generated)
+(11662236 missing values generated)
+(11679238 missing values generated)
+(11680630 missing values generated)
+(11682175 missing values generated)
+(11685747 missing values generated)
+
+. 
+. gen pop1519 = pop if age>=15 & age<=19
+(9961791 missing values generated)
+
+. gen pop2024 = pop if age>=20 & age<=24 
+(10051357 missing values generated)
+
+. gen pop2534 = pop if age>=25 & age<=34
+(8074337 missing values generated)
+
+. gen pop2034 = pop if age>=20 & age<=34 
+(6056221 missing values generated)
+
+. gen pop3544 = pop if age>=35 & age<=44
+(8120934 missing values generated)
+
+. gen pop45plus = pop if age>44
+(12069473 missing values generated)
+
+. 
+. gen popwhitenh1519 = pop if age>=15 & age<=19 & race==1 & hispanic==0
+(11599805 missing values generated)
+
+. gen popwhitenh2024 = pop if age>=20 & age<=24 & race==1 & hispanic==0
+(11600485 missing values generated)
+
+. gen popwhitenh2534 = pop if age>=25 & age<=34 & race==1 & hispanic==0
+(11129816 missing values generated)
+
+. gen popwhitenh2034 = pop if age>=20 & age<=34 & race==1 & hispanic==0 
+(10660828 missing values generated)
+
+. gen popwhitenh3544 = pop if age>=35 & age<=44 & race==1 & hispanic==0
+(11129458 missing values generated)
+
+. gen popwhitenh45plus = pop if age>=35 & age<=44 & race==1 & hispanic==0
+(11129458 missing values generated)
+
+. 
+. gen popblacknh1519 = pop if age>=15 & age<=19 & race==2 & hispanic==0
+(11722870 missing values generated)
+
+. gen popblacknh2024 = pop if age>=20 & age<=24 & race==2 & hispanic==0
+(11742094 missing values generated)
+
+. gen popblacknh2534 = pop if age>=25 & age<=34 & race==2 & hispanic==0
+(11443135 missing values generated)
+
+. gen popblacknh2034 = pop if age>=20 & age<=34 & race==2 & hispanic==0
+(11115756 missing values generated)
+
+. gen popblacknh3544 = pop if age>=35 & age<=44 & race==2 & hispanic==0
+(11454013 missing values generated)
+
+. gen popblacknh45plus = pop if age>44 & race==1 & hispanic==0
+(12069473 missing values generated)
+
+. 
+. gen pophispanic1519 = pop if age>=15 & age<=19 & hispanic==1
+(11290922 missing values generated)
+
+. gen pophispanic2024 = pop if age>=20 & age<=24 & hispanic==1
+(11328411 missing values generated)
+
+. gen pophispanic2534 = pop if age>=25 & age<=34 & hispanic==1
+(10632290 missing values generated)
+
+. gen pophispanic2034 = pop if age>=20 & age<=34 & hispanic==1
+(9891228 missing values generated)
+
+. gen pophispanic3544 = pop if age>=35 & age<=44 & hispanic==1
+(10712863 missing values generated)
+
+. gen pophispanic45plus = pop if age>44 & race==1 & hispanic==0
+(12069473 missing values generated)
+
+. 
+. gen popotherrace1519 = pop if age>=15 & age<=19 & race>2 & hispanic==0
+(11556613 missing values generated)
+
+. gen popotherrace2024 = pop if age>=20 & age<=24 & race>2 & hispanic==0
+(11588786 missing values generated)
+
+. gen popotherrace2534 = pop if age>=25 & age<=34 & race>2 & hispanic==0
+(11077515 missing values generated)
+
+. gen popotherrace2034 = pop if age>=20 & age<=34 & race>2 & hispanic==0
+(10596828 missing values generated)
+
+. gen popotherrace3544 = pop if age>=35 & age<=44 & race>2 & hispanic==0
+(11033019 missing values generated)
+
+. gen popotherrace45plus = pop if age>44 & race==1 & hispanic==0
+(12069473 missing values generated)
+
+. 
+. sort stname year
+
+. collapse (sum) pop*, by(stname year)
+
+. 
+. forvalues i = 15(1)19{
+  2. gen pctpop`i' = (pop`i'/pop1519)
+  3. }
+
+. forvalues i = 20(1)34{
+  2. gen pctpop`i' = (pop`i'/pop2034)
+  3. }
+
+. forvalues i = 35(1)44{
+  2. gen pctpop`i' = (pop`i'/pop3544)
+  3. }
+
+. 
+. *save `temp1', replace 
+. 
+. gen pctpop1819 = pctpop18 + pctpop19
+
+. 
+. gen pop2045plus = pop2034 + pop3544 + pop45plus
+
+. 
+. *race agg data
+. gen popwhite1544 = popwhitenh1519 + popwhitenh2034 ///
+>                                         + popwhitenh3544
+
+. gen popblack1544 = popblacknh1519 + popblacknh2034 ///
+>                                         + popblacknh3544
+
+. gen pophispanic1544 = pophispanic1519 + pophispanic2034 ///
+>                                         + pophispanic3544
+
+.                                         
+. save $ft_data_dir\pop\age_race_comp_seer.dta, replace
+file D:\fertility-data\fertility-replication-sept-revision\data\pop\age_race_comp_seer.dta saved
+
+. 
+. cap log close

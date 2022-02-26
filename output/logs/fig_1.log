@@ -1,0 +1,31 @@
+--------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\fertility-data\fertility-replication-sept-revision\output\logs\fig_1.log
+  log type:  text
+ opened on:  15 Sep 2021, 01:50:26
+
+. 
+. import delimited $ft_data_dir\fig_1.csv, clear
+(2 vars, 41 obs)
+. 
+. destring *, replace
+year already numeric; no replace
+brate_all already numeric; no replace
+
+. 
+. *Figure 1
+. twoway line brate_all year
+(note: scheme plain not found, using s2color)
+
+. 
+. graph export $ft_output_dir/fig_1.png, replace
+(file D:\fertility-data\fertility-replication-sept-revision\output/fig_1.png written in PNG format
+> )
+
+. 
+. log close
+      name:  <unnamed>
+       log:  D:\fertility-data\fertility-replication-sept-revision\output\logs\fig_1.log
+  log type:  text
+ closed on:  15 Sep 2021, 01:50:30
+--------------------------------------------------------------------------------------------------

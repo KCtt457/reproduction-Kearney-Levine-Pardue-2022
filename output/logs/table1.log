@@ -1,0 +1,463 @@
+--------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\fertility-data\fertility-replication-sept-revision\output\logs\table1.log
+  log type:  text
+ opened on:  15 Sep 2021, 01:51:35
+
+. 
+. tempfile temp1
+
+. tempfile temp2
+
+. tempfile temp3
+
+. tempfile temp4
+
+. 
+. import delimited $ft_data_dir\decomp\births_educ_race_age6.csv, clear
+(70 vars, 19 obs)
+. save `temp1', replace
+(note: file C:\Users\luke.pardue\AppData\Local\Temp\ST_00000001.tmp not found)
+file C:\Users\luke.pardue\AppData\Local\Temp\ST_00000001.tmp saved
+
+. 
+. ******** Population: CPS ********
+. 
+. *creates file used below: age x educ x race/eth population
+. qui do $ft_programs_dir\table_1_population
+
+. 
+. use $ft_data_dir\decomp\state_year_age6grp_educ_raceeth_pop1544_aggteens
+
+. egen popalleduc = rowtotal(pop_*)
+
+.         collapse (sum) pop_all*1519 pop_lesshs* pop_hsgrad* pop_somecol* ///
+>         pop_colgrad* popalleduc, by(year) 
+
+. merge 1:1 year using `temp1'
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                19  (_merge==3)
+    -----------------------------------------
+
+. assert _merge==3
+
+. drop _merge      
+
+. 
+. *Get the overall Birth Rate (EP) change - 
+.         *need this for calculating D s_i x (E/P)_i
+.         preserve 
+
+.         collapse (sum) numbirthalleduc popalleduc, by(year)
+
+.  
+.         reshape long numbirth pop, i(year) j(edgrp) string
+(note: j = alleduc)
+
+Data                               wide   ->   long
+-----------------------------------------------------------------------------
+Number of obs.                       19   ->      19
+Number of variables                   3   ->       4
+j variable (1 values)                     ->   edgrp
+xij variables:
+                        numbirthalleduc   ->   numbirth
+                             popalleduc   ->   pop
+-----------------------------------------------------------------------------
+
+.         
+.         gen brate = numbirth/pop
+
+.         keep year edgrp brate
+
+.         
+.         reshape wide brate, i(edgrp) j(year)
+(note: j = 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 20
+> 18 2019)
+
+Data                               long   ->   wide
+-----------------------------------------------------------------------------
+Number of obs.                       19   ->       1
+Number of variables                   3   ->      20
+j variable (19 values)             year   ->   (dropped)
+xij variables:
+                                  brate   ->   brate2001 brate2002 ... brate2019
+-----------------------------------------------------------------------------
+
+.         local brate_all = brate2001[1]
+
+.         
+.         local brate_all_01 = brate2001[1]
+
+.         local brate_all_07 = brate2007[1]
+
+.         local brate_all_19 = brate2019[1]
+
+.         
+.         di brate2001*1000
+64.620413
+
+.         di brate2007*1000
+68.772972
+
+.         di brate2019*1000
+56.767769
+
+.         
+.         restore
+
+.  
+.         *1. Reallocate missing educ #'s FOR 20-44 Y.O's according to nonmissing distribution
+.         foreach raceeth in blacknh whitenh hisp {       
+  2.         foreach age in 2024 2529 3034 3539 4044 {
+  3.         foreach var in lesshs hsgrad somecoll colgrad {
+  4.         gen pct_`var'_`raceeth'_`age' = (numbirth_`var'_`raceeth'_`age'/numbirthalleduc_2044)
+  5.         gen pct_nm_`var'_`raceeth'_`age' = (numbirth_`var'_`raceeth'_`age'/numbirth_witheduc_
+> 2044)
+  6.         gen numbirth_`var'`raceeth'`age' = numbirthalleduc_2044*pct_nm_`var'_`raceeth'_`age' 
+  7.         }
+  8.         }
+  9.         }
+
+.         
+.         *so we have numbirth_all_1519_whitenh pop_allwhitenh1519
+.         rename numbirth_all_1519_whitenh numbirth_alleducwhitenh1519
+
+.         rename numbirth_all_1519_blacknh numbirth_alleducblacknh1519
+
+.         rename numbirth_all_1519_hisp numbirth_alleduchisp1519
+
+.         rename pop_allwhitenh1519 pop_alleducwhitenh1519
+
+.         rename pop_allblacknh1519 pop_alleducblacknh1519
+
+.         rename pop_allhisp1519 pop_alleduchisp1519
+
+.         
+.         drop numbirth_lesshs_* numbirth_hsgrad_* numbirth_somecoll_* numbirth_colgrad_* numbirth
+> _witheduc
+
+.          
+.         rename pop_* pop*
+
+.         rename numbirth_* numbirth*
+
+.         
+.         drop numbirthalleduc numbirthalleduc_2044 pct* popalleduc
+
+.         
+.         reshape long numbirth pop, i(year) j(age_raceeth_edgrp) string
+(note: j = alleducblacknh1519 alleduchisp1519 alleducwhitenh1519 colgradblacknh2024 colgradblacknh
+> 2529 colgradblacknh3034 colgradblacknh3539 colgradblacknh4044 colgradhisp2024 colgradhisp2529 co
+> lgradhisp3034 colgradhisp3539 colgradhisp4044 colgradwhitenh2024 colgradwhitenh2529 colgradwhite
+> nh3034 colgradwhitenh3539 colgradwhitenh4044 hsgradblacknh2024 hsgradblacknh2529 hsgradblacknh30
+> 34 hsgradblacknh3539 hsgradblacknh4044 hsgradhisp2024 hsgradhisp2529 hsgradhisp3034 hsgradhisp35
+> 39 hsgradhisp4044 hsgradwhitenh2024 hsgradwhitenh2529 hsgradwhitenh3034 hsgradwhitenh3539 hsgrad
+> whitenh4044 lesshsblacknh2024 lesshsblacknh2529 lesshsblacknh3034 lesshsblacknh3539 lesshsblackn
+> h4044 lesshshisp2024 lesshshisp2529 lesshshisp3034 lesshshisp3539 lesshshisp4044 lesshswhitenh20
+> 24 lesshswhitenh2529 lesshswhitenh3034 lesshswhitenh3539 lesshswhitenh4044 somecollblacknh2024 s
+> omecollblacknh2529 somecollblacknh3034 somecollblacknh3539 somecollblacknh4044 somecollhisp2024 
+> somecollhisp2529 somecollhisp3034 somecollhisp3539 somecollhisp4044 somecollwhitenh2024 somecoll
+> whitenh2529 somecollwhitenh3034 somecollwhitenh3539 somecollwhitenh4044)
+
+Data                               wide   ->   long
+-----------------------------------------------------------------------------
+Number of obs.                       19   ->    1197
+Number of variables                 127   ->       4
+j variable (63 values)                    ->   age_raceeth_edgrp
+xij variables:
+numbirthalleducblacknh1519 numbirthalleduchisp1519 ... numbirthsomecollwhitenh4044->numbirth
+popalleducblacknh1519 popalleduchisp1519 ... popsomecollwhitenh4044->pop
+-----------------------------------------------------------------------------
+
+. 
+.         
+. *Now, calculate each of the three decomposed terms for each detailed age bin
+.         *Generate share s_i
+.         bysort year: egen totalpop = sum(pop)
+
+.         gen si = pop/totalpop
+
+.         
+.         *Generate brate
+.         gen brate = numbirth/pop
+
+.         
+.         replace brate = 0 if numbirth==0 | pop==0
+(0 real changes made)
+
+.         assert brate!=.
+
+.         
+.         *Reshape to facilitate calculation for each year
+.         keep year age_raceeth_edgrp brate si
+
+.         reshape wide brate si, i(age_raceeth_edgrp) j(year)
+(note: j = 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014 2015 2016 2017 20
+> 18 2019)
+
+Data                               long   ->   wide
+-----------------------------------------------------------------------------
+Number of obs.                     1197   ->      63
+Number of variables                   4   ->      39
+j variable (19 values)             year   ->   (dropped)
+xij variables:
+                                  brate   ->   brate2001 brate2002 ... brate2019
+                                     si   ->   si2001 si2002 ... si2019
+-----------------------------------------------------------------------------
+
+.         
+.         *Calculate input variables
+.         gen bratediff_0107 = brate2007-brate2001
+
+.         gen sidiff_0107 = si2007-si2001
+
+.         gen brateall_01 = `brate_all_01'
+
+.         gen term1_0107 = si2001*bratediff_0107
+
+.         gen term2_0107 = sidiff_0107*(brate2001-`brate_all_01')
+
+.         gen term3_0107 = sidiff_0107*bratediff_0107
+
+. 
+.         *Calculate input variables: 07-19
+.         gen bratediff_0719 = brate2019-brate2007
+
+.         gen sidiff_0719 = si2019-si2007
+
+.         gen brateall_07 = `brate_all_19'
+
+.         gen term1_0719 = si2007*bratediff_0719
+
+.         gen term2_0719 = sidiff_0719*(brate2007-`brate_all_07')
+
+.         gen term3_0719 = sidiff_0719*bratediff_0719
+
+.         
+.         *Calculate input variables: 01-18
+.         gen bratediff_0119 = brate2019-brate2001
+
+.         gen sidiff_0119 = si2019-si2001
+
+.           *gen brateall_01 = `brate_all_01'
+.         gen term1_0119 = si2001*bratediff_0119
+
+.         gen term2_0119 = sidiff_0119*(brate2001-`brate_all_01')
+
+.         gen term3_0119 = sidiff_0119*bratediff_0119
+
+.         
+.         label define order  1 alleducwhitenh1519  ///
+>         2 lesshswhitenh2024 3 lesshswhitenh2529 4 lesshswhitenh3034 5 lesshswhitenh3539 6 lesshs
+> whitenh4044 ///
+>         7 hsgradwhitenh2024 8 hsgradwhitenh2529 9 hsgradwhitenh3034 10 hsgradwhitenh3539 11 hsgr
+> adwhitenh4044 ///
+>         12 somecollwhitenh2024 13 somecollwhitenh2529 14 somecollwhitenh3034 15 somecollwhitenh3
+> 539 16 somecollwhitenh4044 ///
+>         17 colgradwhitenh2024 8 colgradwhitenh2529 19 colgradwhitenh3034 20 colgradwhitenh3539 2
+> 1 colgradwhitenh4044 ///
+>         22 alleducblacknh1519  ///
+>         23 lesshsblacknh2024 24 lesshsblacknh2529 25 lesshsblacknh3034 26 lesshsblacknh3539 27 l
+> esshsblacknh4044 ///
+>         28 hsgradblacknh2024 29 hsgradblacknh2529 30 hsgradblacknh3034 31 hsgradblacknh3539 32 h
+> sgradblacknh4044 ///
+>         33 somecollblacknh2024 34 somecollblacknh2529 35 somecollblacknh3034 36 somecollblacknh3
+> 539 37 somecollblacknh4044 ///
+>         38 colgradblacknh2024 39 colgradblacknh2529 40 colgradblacknh3034 41 colgradblacknh3539 
+> 42 colgradblacknh4044 ///
+>         43 alleduchisp1519  ///
+>         44 lesshshisp2024 45 lesshshisp2529 46 lesshshisp3034 47 lesshshisp3539 48 lesshshisp404
+> 4 ///
+>         49 hsgradhisp2024 50 hsgradhisp2529 51 hsgradhisp3034 52 hsgradhisp3539 53 hsgradhisp404
+> 4 ///
+>         54 somecollhisp2024 55 somecollhisp2529 56 somecollhisp3034 57 somecollhisp3539 58 somec
+> ollhisp4044 ///
+>         59 colgradhisp2024 60 colgradhisp2529 61 colgradhisp3034 62 colgradhisp3539 63 colgradhi
+> sp4044 
+
+.         encode age_raceeth_edgrp, gen(age_raceeth_edgrp2) label(order)
+
+.         sort age_raceeth_edgrp2
+
+.         
+.         replace brate2001=brate2001*1000
+(63 real changes made)
+
+.         replace brate2007=brate2007*1000
+(63 real changes made)
+
+.         replace brate2019=brate2019*1000
+(63 real changes made)
+
+.         
+.         order age_raceeth_edgrp brate2001 brate2007 brate2019 si2001 si2007 si2019
+
+.         save `temp2', replace
+(note: file C:\Users\luke.pardue\AppData\Local\Temp\ST_00000002.tmp not found)
+file C:\Users\luke.pardue\AppData\Local\Temp\ST_00000002.tmp saved
+
+.         
+.         *Collapse again by decomposition age bins
+.         collapse (sum) term1* (sum) term2* (sum) term3*, by(age_raceeth_edgrp)
+
+.         
+.         replace term1_0107 = term1_0107*1000
+(63 real changes made)
+
+.         replace term2_0107 = term2_0107*1000
+(63 real changes made)
+
+.         replace term3_0107 = term3_0107*1000
+(63 real changes made)
+
+. 
+.         replace term1_0719 = term1_0719*1000
+(63 real changes made)
+
+.         replace term2_0719 = term2_0719*1000
+(63 real changes made)
+
+.         replace term3_0719 = term3_0719*1000
+(63 real changes made)
+
+.         
+.         replace term1_0119 = term1_0119*1000
+(63 real changes made)
+
+.         replace term2_0119 = term2_0119*1000
+(63 real changes made)
+
+.         replace term3_0119= term3_0119*1000
+(63 real changes made)
+
+.         
+.         label define order2  1 alleducwhitenh1519  ///
+>         2 lesshswhitenh2024 3 lesshswhitenh2529 4 lesshswhitenh3034 5 lesshswhitenh3539 6 lesshs
+> whitenh4044 ///
+>         7 hsgradwhitenh2024 8 hsgradwhitenh2529 9 hsgradwhitenh3034 10 hsgradwhitenh3539 11 hsgr
+> adwhitenh4044 ///
+>         12 somecollwhitenh2024 13 somecollwhitenh2529 14 somecollwhitenh3034 15 somecollwhitenh3
+> 539 16 somecollwhitenh4044 ///
+>         17 colgradwhitenh2024 8 colgradwhitenh2529 19 colgradwhitenh3034 20 colgradwhitenh3539 2
+> 1 colgradwhitenh4044 ///
+>         22 alleducblacknh1519  ///
+>         23 lesshsblacknh2024 24 lesshsblacknh2529 25 lesshsblacknh3034 26 lesshsblacknh3539 27 l
+> esshsblacknh4044 ///
+>         28 hsgradblacknh2024 29 hsgradblacknh2529 30 hsgradblacknh3034 31 hsgradblacknh3539 32 h
+> sgradblacknh4044 ///
+>         33 somecollblacknh2024 34 somecollblacknh2529 35 somecollblacknh3034 36 somecollblacknh3
+> 539 37 somecollblacknh4044 ///
+>         38 colgradblacknh2024 39 colgradblacknh2529 40 colgradblacknh3034 41 colgradblacknh3539 
+> 42 colgradblacknh4044 ///
+>         43 alleduchisp1519  ///
+>         44 lesshshisp2024 45 lesshshisp2529 46 lesshshisp3034 47 lesshshisp3539 48 lesshshisp404
+> 4 ///
+>         49 hsgradhisp2024 50 hsgradhisp2529 51 hsgradhisp3034 52 hsgradhisp3539 53 hsgradhisp404
+> 4 ///
+>         54 somecollhisp2024 55 somecollhisp2529 56 somecollhisp3034 57 somecollhisp3539 58 somec
+> ollhisp4044 ///
+>         59 colgradhisp2024 60 colgradhisp2529 61 colgradhisp3034 62 colgradhisp3539 63 colgradhi
+> sp4044 
+
+.         encode age_raceeth_edgrp, gen(age_raceeth_edgrp2) label(order2)
+
+.         sort age_raceeth_edgrp2
+
+.         
+. 
+.         keep age_raceeth_edgrp term1_0719 
+
+.         
+.         merge 1:1 age_raceeth_edgrp using `temp2', keepusing(brate2001 brate2007 brate2019 si200
+> 1 si2007 si2019)
+(label order already defined)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                                63  (_merge==3)
+    -----------------------------------------
+
+.         drop _merge 
+
+.         
+.         egen total_term1=total(term1_0719)
+
+.         gen share_term1 = term1_0719/total_term1*100
+
+.                 gen share_neg_term1 = -term1_0719/total_term1*100
+
+.                 sort share_neg_term1
+
+.                 drop share_neg_term1
+
+.                 
+.         *Keep top 8 groups (in percent of total constant-share change) for Table 1
+.         keep if [_n]<=8
+(55 observations deleted)
+
+. 
+.         set obs 9
+obs was 8, now 9
+
+.         replace age_raceeth_edgrp = "total" if age_raceeth_edgrp==""
+(1 real change made)
+
+.         
+.         foreach var in share_term1 si2007{
+  2.         egen total_`var'_top8 = total(`var')
+  3.         replace `var' = total_`var'_top8 if age_raceeth_edgrp=="total"
+  4.         }
+(1 real change made)
+(1 real change made)
+
+.         
+.         *avg birth rates among top 8 groups
+.         sum brate2007 [aw= si2007]
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+   brate2007 |       8  .343483087    76.45804   55.70252   27.10618   295.1091
+
+.         local mean07 = r(mean)
+
+.         replace brate2007 = `mean07' if age_raceeth_edgrp=="total"
+(1 real change made)
+
+. 
+.         sum brate2019 [aw= si2019]
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+   brate2019 |       8  .345656746    50.52254   43.97731   10.99167   206.8129
+
+.         local mean19 = r(mean)
+
+.         replace brate2019 = `mean19' if age_raceeth_edgrp=="total"
+(1 real change made)
+
+. 
+.         gen brate_diff_0719 = brate2019 - brate2007
+
+. 
+.         keep age_raceeth_edgrp share_term1 si2007 brate2007 brate2019 brate_diff_0719
+
+.         order age_raceeth_edgrp share_term1 si2007 brate2007 brate2019 brate_diff_0719
+
+. 
+.         export delimited $ft_output_dir\table_1.csv, replace
+file D:\fertility-data\fertility-replication-sept-revision\output\table_1.csv saved
+
+. 
+end of do-file
+
+. 
+. *Figure 3
+. do $ft_programs_dir\fig_3
+
+. *Create Figure 3, Change in Birth Rates by State, 2004-2008-2015-2018
+. 
+. cap log close 

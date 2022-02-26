@@ -1,0 +1,2073 @@
+--------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  D:\fertility-data\fertility-replication-sept-revision\output\logs\section3_c_regressi
+> ons.log
+  log type:  text
+ opened on:  15 Sep 2021, 01:51:50
+
+. 
+. tempfile temp1
+
+. 
+. *1. Birth Data: NCHS Microdata
+. use $ft_data_dir\nchs\nchs_births_pop_1990_2019, clear
+
+. keep if (year>=2004 & year<=2008) | (year>=2015 & year<=2019) & year!=.
+(1020 observations deleted)
+
+. drop if inlist(stname,"AB","BC","MB","NB","NS","ON","QC","SK","XX")
+(0 observations deleted)
+
+. keep stname year numbirth1544
+
+. save `temp1', replace 
+(note: file C:\Users\luke.pardue\AppData\Local\Temp\ST_00000001.tmp not found)
+file C:\Users\luke.pardue\AppData\Local\Temp\ST_00000001.tmp saved
+
+. 
+. *2. Pop Data: CDC SEER
+. use $ft_data_dir\pop\age_race_comp_seer.dta
+
+. gen pop1544 = pop1519 + pop2034 + pop3544
+
+. keep if (year>=2004 & year<=2008) | (year>=2015 & year<=2019) & year!=.
+(1020 observations deleted)
+
+. collapse (sum) pop1544, by(stname year)
+
+. 
+. *Merge Births and Pop Data, Collapse by 2004-2008 & 2015-2019
+. merge 1:1 stname year using `temp1'
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                               510  (_merge==3)
+    -----------------------------------------
+
+. 
+. gen year2 = 2004 if (year>=2004 & year<=2008) 
+(255 missing values generated)
+
+. replace year2 = 2019 if (year>=2015 & year<=2019) 
+(255 real changes made)
+
+. 
+. *collapse by state, year2
+. collapse (sum) numbirth1544 (sum) pop1544, by(stname year2)
+
+. 
+. rename year2 year 
+
+. gen brate1544_thsnds = numbirth1544/pop1544*1000
+
+. 
+. save $ft_data_dir\long_term\long_birth_rates, replace
+file D:\fertility-data\fertility-replication-sept-revision\data\long_term\long_birth_rates.dta sav
+> ed
+
+. 
+. *3. MERGE IN ECONOMIC VARIABLES - from 2004-2008 & 2015-2019 ACS 
+. use $ft_data_dir\long_term\longdiff-RHS-1519, clear
+
+. append using $ft_data_dir\long_term\longdiff-RHS-0408
+(label statefip_lbl already defined)
+
+. merge 1:1 statefip year using $ft_data_dir\long_term\longdiff-rentcost-0419
+(label statefip_lbl already defined)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                               102  (_merge==3)
+    -----------------------------------------
+
+.         drop _merge
+
+.         drop if statefip>56 // get rid of territories
+(0 observations deleted)
+
+.         statastates, f(statefip) // NO HAWAII
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                               102  (_merge==3)
+    -----------------------------------------
+
+.         keep if _merge==3
+(0 observations deleted)
+
+.         rename state_abbrev stname
+
+.         drop state_name _merge statefip 
+
+.         order year stname 
+
+.         sort stname year
+
+. merge 1:1 stname year using $ft_data_dir\long_term\long_birth_rates
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                               102  (_merge==3)
+    -----------------------------------------
+
+. drop _merge 
+
+. 
+. *4. MERGE IN BIRTH CONTROL USAGE - BRFSS
+. merge 1:1 stname year using $ft_data_dir\long_term\bcusage_st0417_wide
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                            17
+        from master                        16  (_merge==1)
+        from using                          1  (_merge==2)
+
+    matched                                86  (_merge==3)
+    -----------------------------------------
+
+. drop if _merge == 2 // drop Puerto Rico
+(1 observation deleted)
+
+. drop _merge 
+
+. 
+. *5. MERGE IN MEAN CHILDCARE COSTS IN CEX
+. merge 1:1 stname year using $ft_data_dir\long_term\child_care_costs_under12_0408_1519
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                               102  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. 
+. *6. MERGE IN CHILDCARE COSTS IN ASEC
+. merge 1:1 stname year using $ft_data_dir\long_term\childcare_asec_09_1519
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                               102  (_merge==3)
+    -----------------------------------------
+
+. drop _merge
+
+. 
+. *7. MERGE IN STUDENT LOAN DEBT - nyfed 
+. merge 1:1 stname year using $ft_data_dir\long_term\nyfed-student-debt-per-capita-0419
+(note: variable stname was str2, now str6 to accommodate using data's values)
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                               102  (_merge==3)
+    -----------------------------------------
+
+. drop _merge 
+
+. 
+. *8. MERGE IN RELIGIOUSITY - pew 
+. merge 1:1 stname year using $ft_data_dir\long_term\long-diff-religion
+
+    Result                           # of obs.
+    -----------------------------------------
+    not matched                             0
+    matched                               102  (_merge==3)
+    -----------------------------------------
+
+. drop _merge 
+
+. 
+. 
+. ** Variable Cleaning **
+. replace urate_all = urate_all*100
+(102 real changes made)
+
+. replace epop_all = epop_all*100
+(102 real changes made)
+
+. replace larcall = larcall*100
+(86 real changes made)
+
+. replace avg_grossrent = avg_grossrent/1000
+(102 real changes made)
+
+. replace avg_grossrent_hisp = avg_grossrent_hisp/1000
+(102 real changes made)
+
+. replace coll_c3 = coll_c3/1000
+(84 real changes made)
+
+. replace child2 = child2/1000
+(84 real changes made)
+
+. 
+.  *Make Median & 75th-percentile Wage Ratio
+.  gen p50wage_all_ratio = p50wage_all/p50wage_male_all*100
+
+.  cap rename p75wage p75wage_all
+
+.  cap rename p75wage_male p75wage_male_all
+
+.  gen p75wage_all_ratio = p75wage_all/p75wage_male_all*100
+
+. 
+. label var larcall "LARC Usage (\%)"
+
+. label var epop_all "Female, Prime-Age EPOP (\%)"
+
+. label var avg_grossrent "Average Gross Rent, 2-3 BR (Thsnds)"
+
+. label var cost_burd "Share Housing Cost Burdened HH's"
+
+. label var coll_c3 "Mean Child Care Costs (Thsnds)"
+
+. label var child2 "Mean Child Care Costs, >0 (Thsnds)"
+
+. label var hwsei_all "Occupational Prestige Index, Women 25-44"
+
+. label var child_asec "Mean Child Care Costs, ASEC (Thsnds)"
+
+. label var very_somewhat_important "Religion is ``Somewhat or Very Important''"
+
+. label var p50wage_all_ratio "Female-Male Median Wage Ratio (\%)"
+
+. label var p75wage_all_ratio "Female-Male 75th-Percentile Wage Ratio (\%)"
+
+. 
+. *Make State Dummies
+. qui tab stname, gen(stdv)
+
+. 
+. *Create First-Differences for Scatterplots
+. sort stname year 
+
+. foreach var in brate1544 brate1544_thsnds larcall epop_all hwsei_all avg_grossrent /// 
+>  child2 child_asec stud_loan_cap very_somewhat_important p50wage_all_ratio p75wage_all_ratio {
+  2. bys stname: gen fd_`var' = `var'-`var'[_n-1]
+  3. }
+(51 missing values generated)
+(51 missing values generated)
+(67 missing values generated)
+(51 missing values generated)
+(51 missing values generated)
+(51 missing values generated)
+(63 missing values generated)
+(51 missing values generated)
+(51 missing values generated)
+(51 missing values generated)
+(51 missing values generated)
+(51 missing values generated)
+
+. 
+. 
+. ********************* REGRESSIONS: LOGS *************************
+. 
+. *** INDIVIDUALLY
+. *unweighted 
+. foreach var in larcall epop_all avg_grossrent very_somewhat_important ///
+>  hwsei_all stud_loan_cap child2 child_asec p50wage_all_ratio p75wage_all_ratio {
+  2. areg brate1544 `var' i.year, r absorb(stname)
+  3. }
+
+Linear regression, absorbing indicators           Number of obs   =         86
+                                                  F(   2,     33) =      27.71
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.9082
+                                                  Adj R-squared   =     0.7635
+                                                  Root MSE        =     3.6693
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+     larcall |   .1293377   .3398102     0.38   0.706    -.5620113    .8206868
+             |
+        year |
+       2019  |  -8.020568   2.332851    -3.44   0.002    -12.76679   -3.274346
+             |
+       _cons |   67.13994   1.921772    34.94   0.000     63.23007    71.04982
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      42.95
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8986
+                                                  Adj R-squared   =     0.7909
+                                                  Root MSE        =     3.4818
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+    epop_all |   .6601181   .3734541     1.77   0.083    -.0903659    1.410602
+             |
+        year |
+       2019  |  -6.828361   .7670572    -8.90   0.000     -8.36982   -5.286902
+             |
+       _cons |   15.85496   29.13649     0.54   0.589    -42.69701    74.40694
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      41.44
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8946
+                                                  Adj R-squared   =     0.7828
+                                                  Root MSE        =     3.5484
+
+-------------------------------------------------------------------------------
+              |               Robust
+brate1544_t~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+--------------+----------------------------------------------------------------
+avg_grossrent |  -2.871504   8.777381    -0.33   0.745    -20.51031     14.7673
+              |
+         year |
+        2019  |  -6.083705   1.092441    -5.57   0.000    -8.279047   -3.888364
+              |
+        _cons |    69.8734   7.503852     9.31   0.000     54.79384    84.95295
+--------------+----------------------------------------------------------------
+       stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      46.78
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8990
+                                                  Adj R-squared   =     0.7918
+                                                  Root MSE        =     3.4745
+
+-----------------------------------------------------------------------------------------
+                        |               Robust
+       brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------------+----------------------------------------------------------------
+very_somewhat_important |  -.2809032   .2366967    -1.19   0.241     -.756563    .1947567
+                        |
+                   year |
+                  2019  |  -7.829488   1.298478    -6.03   0.000    -10.43888   -5.220099
+                        |
+                  _cons |   90.51259   19.39487     4.67   0.000     51.53714     129.488
+------------------------+----------------------------------------------------------------
+                 stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      52.02
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.9021
+                                                  Adj R-squared   =     0.7982
+                                                  Root MSE        =     3.4204
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+   hwsei_all |   2.226202   .9518628     2.34   0.023     .3133622    4.139042
+             |
+        year |
+       2019  |  -7.433699   .7502434    -9.91   0.000     -8.94137   -5.926029
+             |
+       _cons |  -6.330871   31.59871    -0.20   0.842    -69.83085    57.16911
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      53.48
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8945
+                                                  Adj R-squared   =     0.7825
+                                                  Root MSE        =     3.5515
+
+-------------------------------------------------------------------------------
+              |               Robust
+brate1544_t~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+--------------+----------------------------------------------------------------
+stud_loan_cap |  -.0792015   .7325127    -0.11   0.914    -1.551241    1.392838
+              |
+         year |
+        2019  |  -6.163045   2.438706    -2.53   0.015    -11.06381   -1.262282
+              |
+        _cons |   67.64339   1.815884    37.25   0.000     63.99423    71.29254
+--------------+----------------------------------------------------------------
+       stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =         84
+                                                  F(   2,     37) =      36.79
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.9094
+                                                  Adj R-squared   =     0.7968
+                                                  Root MSE        =     3.3474
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+      child2 |   .1365844   .1555334     0.88   0.386    -.1785561     .451725
+             |
+        year |
+       2019  |  -7.028114   .8745851    -8.04   0.000    -8.800192   -5.256036
+             |
+       _cons |   66.32343   1.033218    64.19   0.000     64.22993    68.41692
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (45 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      42.69
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8982
+                                                  Adj R-squared   =     0.7902
+                                                  Root MSE        =     3.4881
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+  child_asec |   1.100357   .7529398     1.46   0.150    -.4127317    2.613447
+             |
+        year |
+       2019  |  -8.601106   1.761625    -4.88   0.000    -12.14122   -5.060988
+             |
+       _cons |   62.13504   3.607133    17.23   0.000     54.88623    69.38384
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      43.05
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8990
+                                                  Adj R-squared   =     0.7919
+                                                  Root MSE        =     3.4736
+
+-----------------------------------------------------------------------------------
+                  |               Robust
+ brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------+----------------------------------------------------------------
+p50wage_all_ratio |   .3591607   .2066942     1.74   0.089    -.0562067    .7745282
+                  |
+             year |
+            2019  |  -7.735145    1.13791    -6.80   0.000    -10.02186   -5.448429
+                  |
+            _cons |    39.1478   16.21749     2.41   0.020     6.557531    71.73806
+------------------+----------------------------------------------------------------
+           stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      50.86
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.9011
+                                                  Adj R-squared   =     0.7961
+                                                  Root MSE        =     3.4387
+
+-----------------------------------------------------------------------------------
+                  |               Robust
+ brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------+----------------------------------------------------------------
+p75wage_all_ratio |   .4571884   .2882014     1.59   0.119     -.121974    1.036351
+                  |
+             year |
+            2019  |  -7.785801   1.364637    -5.71   0.000    -10.52814   -5.043461
+                  |
+            _cons |    32.7979   21.66564     1.51   0.136    -10.74083    76.33664
+------------------+----------------------------------------------------------------
+           stname |   absorbed                                      (51 categories)
+
+. 
+. *weighted
+. foreach var in larcall epop_all avg_grossrent very_somewhat_important ///
+>  hwsei_all stud_loan_cap child2 child_asec p50wage_all_ratio p75wage_all_ratio ///
+>  med_child_asec child_asec {
+  2. areg brate1544 `var' i.year [pw=pop1544], r absorb(stname)
+  3. }
+
+Linear regression, absorbing indicators           Number of obs   =         86
+                                                  F(   2,     33) =      28.82
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8983
+                                                  Adj R-squared   =     0.7381
+                                                  Root MSE        =     3.3178
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+     larcall |   .7346125   .3028008     2.43   0.021     .1185596    1.350665
+             |
+        year |
+       2019  |  -11.56015   2.031392    -5.69   0.000    -15.69305   -7.427253
+             |
+       _cons |   63.75425   1.711181    37.26   0.000     60.27282    67.23567
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      35.70
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8680
+                                                  Adj R-squared   =     0.7280
+                                                  Root MSE        =     3.3310
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+    epop_all |    .560049   .5927175     0.94   0.349    -.6310613    1.751159
+             |
+        year |
+       2019  |  -8.114252   .9722998    -8.35   0.000    -10.06816   -6.160342
+             |
+       _cons |   24.51316   45.93227     0.53   0.596    -67.79118    116.8175
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      38.17
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8767
+                                                  Adj R-squared   =     0.7458
+                                                  Root MSE        =     3.2204
+
+-------------------------------------------------------------------------------
+              |               Robust
+brate1544_t~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+--------------+----------------------------------------------------------------
+avg_grossrent |  -19.88419   12.84343    -1.55   0.128    -45.69402    5.925639
+              |
+         year |
+        2019  |  -4.979139   1.446698    -3.44   0.001    -7.886387    -2.07189
+              |
+        _cons |   86.26126   12.20524     7.07   0.000     61.73392    110.7886
+--------------+----------------------------------------------------------------
+       stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      32.65
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8752
+                                                  Adj R-squared   =     0.7427
+                                                  Root MSE        =     3.2399
+
+-----------------------------------------------------------------------------------------
+                        |               Robust
+       brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------------+----------------------------------------------------------------
+very_somewhat_important |  -.4718816    .278336    -1.70   0.096    -1.031219    .0874556
+                        |
+                   year |
+                  2019  |  -9.620496   1.871743    -5.14   0.000     -13.3819   -5.859087
+                        |
+                  _cons |   106.6624   23.19113     4.60   0.000      60.0581    153.2667
+------------------------+----------------------------------------------------------------
+                 stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      29.72
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8726
+                                                  Adj R-squared   =     0.7373
+                                                  Root MSE        =     3.2735
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+   hwsei_all |   2.567965   1.321109     1.94   0.058    -.0869039    5.222833
+             |
+        year |
+       2019  |   -8.71474    1.18994    -7.32   0.000    -11.10601   -6.323467
+             |
+       _cons |  -15.99664   43.05972    -0.37   0.712    -102.5284     70.5351
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      32.25
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8716
+                                                  Adj R-squared   =     0.7353
+                                                  Root MSE        =     3.2859
+
+-------------------------------------------------------------------------------
+              |               Robust
+brate1544_t~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+--------------+----------------------------------------------------------------
+stud_loan_cap |   1.989672   1.999575     1.00   0.325    -2.028624    6.007969
+              |
+         year |
+        2019  |  -13.09932   5.965881    -2.20   0.033     -25.0882    -1.11043
+              |
+        _cons |   62.68802   4.961859    12.63   0.000     52.71679    72.65925
+--------------+----------------------------------------------------------------
+       stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =         84
+                                                  F(   2,     37) =      24.03
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8706
+                                                  Adj R-squared   =     0.7097
+                                                  Root MSE        =     3.4140
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+      child2 |   .3797195   .3373956     1.13   0.268     -.303909    1.063348
+             |
+        year |
+       2019  |  -8.373569    1.46303    -5.72   0.000    -11.33795   -5.409188
+             |
+       _cons |   65.30147   2.070921    31.53   0.000     61.10539    69.49756
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (45 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      28.27
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8673
+                                                  Adj R-squared   =     0.7265
+                                                  Root MSE        =     3.3403
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+  child_asec |   .7304065   .9265908     0.79   0.434    -1.131647    2.592461
+             |
+        year |
+       2019  |  -9.032971   2.091154    -4.32   0.000     -13.2353   -4.830641
+             |
+       _cons |   64.02884   4.801131    13.34   0.000     54.38061    73.67708
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      29.54
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8751
+                                                  Adj R-squared   =     0.7425
+                                                  Root MSE        =     3.2408
+
+-----------------------------------------------------------------------------------
+                  |               Robust
+ brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------+----------------------------------------------------------------
+p50wage_all_ratio |   .6379115   .3494176     1.83   0.074    -.0642695    1.340092
+                  |
+             year |
+            2019  |  -9.909365   1.737697    -5.70   0.000     -13.4014   -6.417332
+                  |
+            _cons |    16.3367   28.08478     0.58   0.563    -40.10178    72.77518
+------------------+----------------------------------------------------------------
+           stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      32.25
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8822
+                                                  Adj R-squared   =     0.7573
+                                                  Root MSE        =     3.1467
+
+-----------------------------------------------------------------------------------
+                  |               Robust
+ brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------+----------------------------------------------------------------
+p75wage_all_ratio |    .850718   .3589255     2.37   0.022     .1294303    1.572006
+                  |
+             year |
+            2019  |  -10.04503   1.507814    -6.66   0.000    -13.07509   -7.014963
+                  |
+            _cons |   2.441957   27.49141     0.09   0.930    -52.80409    57.68801
+------------------+----------------------------------------------------------------
+           stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      26.95
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8660
+                                                  Adj R-squared   =     0.7238
+                                                  Root MSE        =     3.3568
+
+--------------------------------------------------------------------------------
+               |               Robust
+brate1544_th~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+---------------+----------------------------------------------------------------
+med_child_asec |   .5789263   .8497271     0.68   0.499    -1.128664    2.286517
+               |
+          year |
+         2019  |  -8.203088   1.462248    -5.61   0.000    -11.14158   -5.264591
+               |
+         _cons |   65.64417   3.136516    20.93   0.000     59.34111    71.94724
+---------------+----------------------------------------------------------------
+        stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      28.27
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8673
+                                                  Adj R-squared   =     0.7265
+                                                  Root MSE        =     3.3403
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+  child_asec |   .7304065   .9265908     0.79   0.434    -1.131647    2.592461
+             |
+        year |
+       2019  |  -9.032971   2.091154    -4.32   0.000     -13.2353   -4.830641
+             |
+       _cons |   64.02884   4.801131    13.34   0.000     54.38061    73.67708
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+. 
+. *** TOGETHER
+. *unweighted
+. local xvar larcall epop_all avg_grossrent very_somewhat_important ///
+>  hwsei_all stud_loan_cap child_asec p50wage_all_ratio p75wage_all_ratio 
+
+. areg brate1544 `xvar' i.year, r absorb(stname)
+
+Linear regression, absorbing indicators           Number of obs   =         86
+                                                  F(  10,     25) =      10.15
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.9354
+                                                  Adj R-squared   =     0.7804
+                                                  Root MSE        =     3.5362
+
+-----------------------------------------------------------------------------------------
+                        |               Robust
+       brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------------+----------------------------------------------------------------
+                larcall |  -.1278804    .370766    -0.34   0.733    -.8914872    .6357264
+               epop_all |  -.7569121   1.005477    -0.75   0.459     -2.82773    1.313906
+          avg_grossrent |  -30.03211   24.33158    -1.23   0.229    -80.14394    20.07972
+very_somewhat_important |   .0742568   .3363147     0.22   0.827    -.6183963    .7669099
+              hwsei_all |   4.605852   1.925261     2.39   0.025     .6407039    8.571001
+          stud_loan_cap |  -.4005291   1.596494    -0.25   0.804    -3.688569    2.887511
+             child_asec |   1.329209   1.928546     0.69   0.497    -2.642706    5.301123
+      p50wage_all_ratio |  -.0926959   .5379473    -0.17   0.865    -1.200619    1.015227
+      p75wage_all_ratio |   .7986283   .6238049     1.28   0.212     -.486122    2.083379
+                        |
+                   year |
+                  2019  |  -8.120365   8.526887    -0.95   0.350    -25.68182    9.441088
+                        |
+                  _cons |  -63.87262   66.51475    -0.96   0.346    -200.8623    73.11707
+------------------------+----------------------------------------------------------------
+                 stname |   absorbed                                      (51 categories)
+
+. 
+. *weighted
+. local xvar larcall epop_all avg_grossrent very_somewhat_important ///
+>  hwsei_all stud_loan_cap child_asec p50wage_all_ratio p75wage_all_ratio 
+
+. areg brate1544 `xvar' i.year  [pw=pop1544], r absorb(stname)
+
+Linear regression, absorbing indicators           Number of obs   =         86
+                                                  F(  10,     25) =      20.30
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.9368
+                                                  Adj R-squared   =     0.7850
+                                                  Root MSE        =     3.0062
+
+-----------------------------------------------------------------------------------------
+                        |               Robust
+       brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------------+----------------------------------------------------------------
+                larcall |   .2934062   .3388281     0.87   0.395    -.4044234    .9912358
+               epop_all |  -1.153099   1.205225    -0.96   0.348    -3.635307    1.329109
+          avg_grossrent |  -34.83817   16.31779    -2.13   0.043    -68.44529   -1.231055
+very_somewhat_important |   .1668992   .4034571     0.41   0.683    -.6640363    .9978347
+              hwsei_all |   4.166336   2.563698     1.63   0.117    -1.113698     9.44637
+          stud_loan_cap |   1.085226    2.05169     0.53   0.602    -3.140308     5.31076
+             child_asec |   2.424074   1.787496     1.36   0.187    -1.257342    6.105491
+      p50wage_all_ratio |   .1836201   .5647302     0.33   0.748    -.9794634    1.346704
+      p75wage_all_ratio |   .6423959   .6586727     0.98   0.339     -.714166    1.998958
+                        |
+                   year |
+                  2019  |  -16.04762   9.161888    -1.75   0.092    -34.91688    2.821638
+                        |
+                  _cons |  -40.42749   81.85432    -0.49   0.626    -209.0096    128.1546
+------------------------+----------------------------------------------------------------
+                 stname |   absorbed                                      (51 categories)
+
+. 
+. 
+. ********************* REGRESSIONS: LEVELS *************************
+. 
+. *** INDIVIDUALLY
+. *unweighted 
+. foreach var in larcall epop_all avg_grossrent very_somewhat_important ///
+>  hwsei_all stud_loan_cap child2 child_asec p50wage_all_ratio p75wage_all_ratio {
+  2. areg brate1544_thsnds `var' i.year, r absorb(stname)
+  3. }
+
+Linear regression, absorbing indicators           Number of obs   =         86
+                                                  F(   2,     33) =      27.71
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.9082
+                                                  Adj R-squared   =     0.7635
+                                                  Root MSE        =     3.6693
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+     larcall |   .1293377   .3398102     0.38   0.706    -.5620113    .8206868
+             |
+        year |
+       2019  |  -8.020568   2.332851    -3.44   0.002    -12.76679   -3.274346
+             |
+       _cons |   67.13994   1.921772    34.94   0.000     63.23007    71.04982
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      42.95
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8986
+                                                  Adj R-squared   =     0.7909
+                                                  Root MSE        =     3.4818
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+    epop_all |   .6601181   .3734541     1.77   0.083    -.0903659    1.410602
+             |
+        year |
+       2019  |  -6.828361   .7670572    -8.90   0.000     -8.36982   -5.286902
+             |
+       _cons |   15.85496   29.13649     0.54   0.589    -42.69701    74.40694
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      41.44
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8946
+                                                  Adj R-squared   =     0.7828
+                                                  Root MSE        =     3.5484
+
+-------------------------------------------------------------------------------
+              |               Robust
+brate1544_t~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+--------------+----------------------------------------------------------------
+avg_grossrent |  -2.871504   8.777381    -0.33   0.745    -20.51031     14.7673
+              |
+         year |
+        2019  |  -6.083705   1.092441    -5.57   0.000    -8.279047   -3.888364
+              |
+        _cons |    69.8734   7.503852     9.31   0.000     54.79384    84.95295
+--------------+----------------------------------------------------------------
+       stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      46.78
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8990
+                                                  Adj R-squared   =     0.7918
+                                                  Root MSE        =     3.4745
+
+-----------------------------------------------------------------------------------------
+                        |               Robust
+       brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------------+----------------------------------------------------------------
+very_somewhat_important |  -.2809032   .2366967    -1.19   0.241     -.756563    .1947567
+                        |
+                   year |
+                  2019  |  -7.829488   1.298478    -6.03   0.000    -10.43888   -5.220099
+                        |
+                  _cons |   90.51259   19.39487     4.67   0.000     51.53714     129.488
+------------------------+----------------------------------------------------------------
+                 stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      52.02
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.9021
+                                                  Adj R-squared   =     0.7982
+                                                  Root MSE        =     3.4204
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+   hwsei_all |   2.226202   .9518628     2.34   0.023     .3133622    4.139042
+             |
+        year |
+       2019  |  -7.433699   .7502434    -9.91   0.000     -8.94137   -5.926029
+             |
+       _cons |  -6.330871   31.59871    -0.20   0.842    -69.83085    57.16911
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      53.48
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8945
+                                                  Adj R-squared   =     0.7825
+                                                  Root MSE        =     3.5515
+
+-------------------------------------------------------------------------------
+              |               Robust
+brate1544_t~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+--------------+----------------------------------------------------------------
+stud_loan_cap |  -.0792015   .7325127    -0.11   0.914    -1.551241    1.392838
+              |
+         year |
+        2019  |  -6.163045   2.438706    -2.53   0.015    -11.06381   -1.262282
+              |
+        _cons |   67.64339   1.815884    37.25   0.000     63.99423    71.29254
+--------------+----------------------------------------------------------------
+       stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =         84
+                                                  F(   2,     37) =      36.79
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.9094
+                                                  Adj R-squared   =     0.7968
+                                                  Root MSE        =     3.3474
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+      child2 |   .1365844   .1555334     0.88   0.386    -.1785561     .451725
+             |
+        year |
+       2019  |  -7.028114   .8745851    -8.04   0.000    -8.800192   -5.256036
+             |
+       _cons |   66.32343   1.033218    64.19   0.000     64.22993    68.41692
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (45 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      42.69
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8982
+                                                  Adj R-squared   =     0.7902
+                                                  Root MSE        =     3.4881
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+  child_asec |   1.100357   .7529398     1.46   0.150    -.4127317    2.613447
+             |
+        year |
+       2019  |  -8.601106   1.761625    -4.88   0.000    -12.14122   -5.060988
+             |
+       _cons |   62.13504   3.607133    17.23   0.000     54.88623    69.38384
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      43.05
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8990
+                                                  Adj R-squared   =     0.7919
+                                                  Root MSE        =     3.4736
+
+-----------------------------------------------------------------------------------
+                  |               Robust
+ brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------+----------------------------------------------------------------
+p50wage_all_ratio |   .3591607   .2066942     1.74   0.089    -.0562067    .7745282
+                  |
+             year |
+            2019  |  -7.735145    1.13791    -6.80   0.000    -10.02186   -5.448429
+                  |
+            _cons |    39.1478   16.21749     2.41   0.020     6.557531    71.73806
+------------------+----------------------------------------------------------------
+           stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      50.86
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.9011
+                                                  Adj R-squared   =     0.7961
+                                                  Root MSE        =     3.4387
+
+-----------------------------------------------------------------------------------
+                  |               Robust
+ brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------+----------------------------------------------------------------
+p75wage_all_ratio |   .4571884   .2882014     1.59   0.119     -.121974    1.036351
+                  |
+             year |
+            2019  |  -7.785801   1.364637    -5.71   0.000    -10.52814   -5.043461
+                  |
+            _cons |    32.7979   21.66564     1.51   0.136    -10.74083    76.33664
+------------------+----------------------------------------------------------------
+           stname |   absorbed                                      (51 categories)
+
+. 
+. *weighted with 2014 & 2019 weights
+. foreach var in larcall epop_all avg_grossrent very_somewhat_important ///
+>  hwsei_all stud_loan_cap child2 child_asec p50wage_all_ratio p75wage_all_ratio {
+  2. areg brate1544_thsnds `var' i.year [pw=pop1544], r absorb(stname)
+  3. }
+
+Linear regression, absorbing indicators           Number of obs   =         86
+                                                  F(   2,     33) =      28.82
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8983
+                                                  Adj R-squared   =     0.7381
+                                                  Root MSE        =     3.3178
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+     larcall |   .7346125   .3028008     2.43   0.021     .1185596    1.350665
+             |
+        year |
+       2019  |  -11.56015   2.031392    -5.69   0.000    -15.69305   -7.427253
+             |
+       _cons |   63.75425   1.711181    37.26   0.000     60.27282    67.23567
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      35.70
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8680
+                                                  Adj R-squared   =     0.7280
+                                                  Root MSE        =     3.3310
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+    epop_all |    .560049   .5927175     0.94   0.349    -.6310613    1.751159
+             |
+        year |
+       2019  |  -8.114252   .9722998    -8.35   0.000    -10.06816   -6.160342
+             |
+       _cons |   24.51316   45.93227     0.53   0.596    -67.79118    116.8175
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      38.17
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8767
+                                                  Adj R-squared   =     0.7458
+                                                  Root MSE        =     3.2204
+
+-------------------------------------------------------------------------------
+              |               Robust
+brate1544_t~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+--------------+----------------------------------------------------------------
+avg_grossrent |  -19.88419   12.84343    -1.55   0.128    -45.69402    5.925639
+              |
+         year |
+        2019  |  -4.979139   1.446698    -3.44   0.001    -7.886387    -2.07189
+              |
+        _cons |   86.26126   12.20524     7.07   0.000     61.73392    110.7886
+--------------+----------------------------------------------------------------
+       stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      32.65
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8752
+                                                  Adj R-squared   =     0.7427
+                                                  Root MSE        =     3.2399
+
+-----------------------------------------------------------------------------------------
+                        |               Robust
+       brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------------+----------------------------------------------------------------
+very_somewhat_important |  -.4718816    .278336    -1.70   0.096    -1.031219    .0874556
+                        |
+                   year |
+                  2019  |  -9.620496   1.871743    -5.14   0.000     -13.3819   -5.859087
+                        |
+                  _cons |   106.6624   23.19113     4.60   0.000      60.0581    153.2667
+------------------------+----------------------------------------------------------------
+                 stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      29.72
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8726
+                                                  Adj R-squared   =     0.7373
+                                                  Root MSE        =     3.2735
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+   hwsei_all |   2.567965   1.321109     1.94   0.058    -.0869039    5.222833
+             |
+        year |
+       2019  |   -8.71474    1.18994    -7.32   0.000    -11.10601   -6.323467
+             |
+       _cons |  -15.99664   43.05972    -0.37   0.712    -102.5284     70.5351
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      32.25
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8716
+                                                  Adj R-squared   =     0.7353
+                                                  Root MSE        =     3.2859
+
+-------------------------------------------------------------------------------
+              |               Robust
+brate1544_t~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+--------------+----------------------------------------------------------------
+stud_loan_cap |   1.989672   1.999575     1.00   0.325    -2.028624    6.007969
+              |
+         year |
+        2019  |  -13.09932   5.965881    -2.20   0.033     -25.0882    -1.11043
+              |
+        _cons |   62.68802   4.961859    12.63   0.000     52.71679    72.65925
+--------------+----------------------------------------------------------------
+       stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =         84
+                                                  F(   2,     37) =      24.03
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8706
+                                                  Adj R-squared   =     0.7097
+                                                  Root MSE        =     3.4140
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+      child2 |   .3797195   .3373956     1.13   0.268     -.303909    1.063348
+             |
+        year |
+       2019  |  -8.373569    1.46303    -5.72   0.000    -11.33795   -5.409188
+             |
+       _cons |   65.30147   2.070921    31.53   0.000     61.10539    69.49756
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (45 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      28.27
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8673
+                                                  Adj R-squared   =     0.7265
+                                                  Root MSE        =     3.3403
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+  child_asec |   .7304065   .9265908     0.79   0.434    -1.131647    2.592461
+             |
+        year |
+       2019  |  -9.032971   2.091154    -4.32   0.000     -13.2353   -4.830641
+             |
+       _cons |   64.02884   4.801131    13.34   0.000     54.38061    73.67708
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      29.54
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8751
+                                                  Adj R-squared   =     0.7425
+                                                  Root MSE        =     3.2408
+
+-----------------------------------------------------------------------------------
+                  |               Robust
+ brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------+----------------------------------------------------------------
+p50wage_all_ratio |   .6379115   .3494176     1.83   0.074    -.0642695    1.340092
+                  |
+             year |
+            2019  |  -9.909365   1.737697    -5.70   0.000     -13.4014   -6.417332
+                  |
+            _cons |    16.3367   28.08478     0.58   0.563    -40.10178    72.77518
+------------------+----------------------------------------------------------------
+           stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      32.25
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8822
+                                                  Adj R-squared   =     0.7573
+                                                  Root MSE        =     3.1467
+
+-----------------------------------------------------------------------------------
+                  |               Robust
+ brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------+----------------------------------------------------------------
+p75wage_all_ratio |    .850718   .3589255     2.37   0.022     .1294303    1.572006
+                  |
+             year |
+            2019  |  -10.04503   1.507814    -6.66   0.000    -13.07509   -7.014963
+                  |
+            _cons |   2.441957   27.49141     0.09   0.930    -52.80409    57.68801
+------------------+----------------------------------------------------------------
+           stname |   absorbed                                      (51 categories)
+
+. 
+.         ******** WEIGHTED REGS WILL MATCH SCATTER PLOT (First Diff) Regressions ******
+.         sort stname year
+
+.         bys stname: gen pop1544_2019 = pop1544[_N]
+
+.         *unweighted vs. weighted 2019 weights
+.         foreach var in larcall epop_all avg_grossrent very_somewhat_important ///
+>         hwsei_all stud_loan_cap child2 child_asec p50wage_all_ratio p75wage_all_ratio {
+  2.                 areg brate1544_thsnds `var' i.year, r absorb(stname)
+  3.                 areg brate1544_thsnds `var' i.year [pw=pop1544_2019], r absorb(stname)
+  4.                 }
+
+Linear regression, absorbing indicators           Number of obs   =         86
+                                                  F(   2,     33) =      27.71
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.9082
+                                                  Adj R-squared   =     0.7635
+                                                  Root MSE        =     3.6693
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+     larcall |   .1293377   .3398102     0.38   0.706    -.5620113    .8206868
+             |
+        year |
+       2019  |  -8.020568   2.332851    -3.44   0.002    -12.76679   -3.274346
+             |
+       _cons |   67.13994   1.921772    34.94   0.000     63.23007    71.04982
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =         86
+                                                  F(   2,     33) =      30.35
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.9022
+                                                  Adj R-squared   =     0.7480
+                                                  Root MSE        =     3.3377
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+     larcall |   .7304263   .2996231     2.44   0.020     .1208385    1.340014
+             |
+        year |
+       2019  |  -11.63422    1.98267    -5.87   0.000    -15.66799   -7.600443
+             |
+       _cons |   63.95723   1.721595    37.15   0.000     60.45462    67.45984
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      42.95
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8986
+                                                  Adj R-squared   =     0.7909
+                                                  Root MSE        =     3.4818
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+    epop_all |   .6601181   .3734541     1.77   0.083    -.0903659    1.410602
+             |
+        year |
+       2019  |  -6.828361   .7670572    -8.90   0.000     -8.36982   -5.286902
+             |
+       _cons |   15.85496   29.13649     0.54   0.589    -42.69701    74.40694
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      35.92
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8726
+                                                  Adj R-squared   =     0.7374
+                                                  Root MSE        =     3.3567
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+    epop_all |   .5566371   .6009449     0.93   0.359    -.6510069    1.764281
+             |
+        year |
+       2019  |  -8.214548   .9838433    -8.35   0.000    -10.19165   -6.237441
+             |
+       _cons |   24.97363    46.5639     0.54   0.594    -68.60003    118.5473
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      41.44
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8946
+                                                  Adj R-squared   =     0.7828
+                                                  Root MSE        =     3.5484
+
+-------------------------------------------------------------------------------
+              |               Robust
+brate1544_t~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+--------------+----------------------------------------------------------------
+avg_grossrent |  -2.871504   8.777381    -0.33   0.745    -20.51031     14.7673
+              |
+         year |
+        2019  |  -6.083705   1.092441    -5.57   0.000    -8.279047   -3.888364
+              |
+        _cons |    69.8734   7.503852     9.31   0.000     54.79384    84.95295
+--------------+----------------------------------------------------------------
+       stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      38.35
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8805
+                                                  Adj R-squared   =     0.7537
+                                                  Root MSE        =     3.2508
+
+-------------------------------------------------------------------------------
+              |               Robust
+brate1544_t~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+--------------+----------------------------------------------------------------
+avg_grossrent |  -19.49121   12.70019    -1.53   0.131     -45.0132    6.030783
+              |
+         year |
+        2019  |   -5.12051   1.467355    -3.49   0.001    -8.069271   -2.171749
+              |
+        _cons |   86.08352   12.04714     7.15   0.000     61.87389    110.2931
+--------------+----------------------------------------------------------------
+       stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      46.78
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8990
+                                                  Adj R-squared   =     0.7918
+                                                  Root MSE        =     3.4745
+
+-----------------------------------------------------------------------------------------
+                        |               Robust
+       brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------------+----------------------------------------------------------------
+very_somewhat_important |  -.2809032   .2366967    -1.19   0.241     -.756563    .1947567
+                        |
+                   year |
+                  2019  |  -7.829488   1.298478    -6.03   0.000    -10.43888   -5.220099
+                        |
+                  _cons |   90.51259   19.39487     4.67   0.000     51.53714     129.488
+------------------------+----------------------------------------------------------------
+                 stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      33.49
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8797
+                                                  Adj R-squared   =     0.7520
+                                                  Root MSE        =     3.2621
+
+-----------------------------------------------------------------------------------------
+                        |               Robust
+       brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------------+----------------------------------------------------------------
+very_somewhat_important |  -.4759707   .2818327    -1.69   0.098    -1.042335    .0903932
+                        |
+                   year |
+                  2019  |  -9.739306    1.86354    -5.23   0.000    -13.48423   -5.994381
+                        |
+                  _cons |   107.2106   23.46497     4.57   0.000     60.05594    154.3652
+------------------------+----------------------------------------------------------------
+                 stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      52.02
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.9021
+                                                  Adj R-squared   =     0.7982
+                                                  Root MSE        =     3.4204
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+   hwsei_all |   2.226202   .9518628     2.34   0.023     .3133622    4.139042
+             |
+        year |
+       2019  |  -7.433699   .7502434    -9.91   0.000     -8.94137   -5.926029
+             |
+       _cons |  -6.330871   31.59871    -0.20   0.842    -69.83085    57.16911
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      30.21
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8767
+                                                  Adj R-squared   =     0.7458
+                                                  Root MSE        =     3.3023
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+   hwsei_all |   2.513268   1.338919     1.88   0.066    -.1773912    5.203926
+             |
+        year |
+       2019  |   -8.78932   1.196118    -7.35   0.000    -11.19301    -6.38563
+             |
+       _cons |  -13.97834   43.62688    -0.32   0.750    -101.6498    73.69316
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      53.48
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8945
+                                                  Adj R-squared   =     0.7825
+                                                  Root MSE        =     3.5515
+
+-------------------------------------------------------------------------------
+              |               Robust
+brate1544_t~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+--------------+----------------------------------------------------------------
+stud_loan_cap |  -.0792015   .7325127    -0.11   0.914    -1.551241    1.392838
+              |
+         year |
+        2019  |  -6.163045   2.438706    -2.53   0.015    -11.06381   -1.262282
+              |
+        _cons |   67.64339   1.815884    37.25   0.000     63.99423    71.29254
+--------------+----------------------------------------------------------------
+       stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      32.99
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8760
+                                                  Adj R-squared   =     0.7444
+                                                  Root MSE        =     3.3118
+
+-------------------------------------------------------------------------------
+              |               Robust
+brate1544_t~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+--------------+----------------------------------------------------------------
+stud_loan_cap |   1.964829   1.958756     1.00   0.321     -1.97144    5.901097
+              |
+         year |
+        2019  |  -13.13272   5.842933    -2.25   0.029    -24.87454   -1.390911
+              |
+        _cons |   62.96225   4.857698    12.96   0.000     53.20034    72.72416
+--------------+----------------------------------------------------------------
+       stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =         84
+                                                  F(   2,     37) =      36.79
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.9094
+                                                  Adj R-squared   =     0.7968
+                                                  Root MSE        =     3.3474
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+      child2 |   .1365844   .1555334     0.88   0.386    -.1785561     .451725
+             |
+        year |
+       2019  |  -7.028114   .8745851    -8.04   0.000    -8.800192   -5.256036
+             |
+       _cons |   66.32343   1.033218    64.19   0.000     64.22993    68.41692
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (45 categories)
+
+Linear regression, absorbing indicators           Number of obs   =         84
+                                                  F(   2,     37) =      24.60
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8756
+                                                  Adj R-squared   =     0.7209
+                                                  Root MSE        =     3.4408
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+      child2 |   .3693453   .3355676     1.10   0.278    -.3105793     1.04927
+             |
+        year |
+       2019  |  -8.464328   1.449603    -5.84   0.000     -11.4015   -5.527153
+             |
+       _cons |   65.58465   2.063559    31.78   0.000     61.40348    69.76582
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (45 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      42.69
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8982
+                                                  Adj R-squared   =     0.7902
+                                                  Root MSE        =     3.4881
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+  child_asec |   1.100357   .7529398     1.46   0.150    -.4127317    2.613447
+             |
+        year |
+       2019  |  -8.601106   1.761625    -4.88   0.000    -12.14122   -5.060988
+             |
+       _cons |   62.13504   3.607133    17.23   0.000     54.88623    69.38384
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      28.81
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8720
+                                                  Adj R-squared   =     0.7362
+                                                  Root MSE        =     3.3641
+
+------------------------------------------------------------------------------
+             |               Robust
+brate1544_~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+  child_asec |   .7450661   .9368375     0.80   0.430    -1.137579    2.627711
+             |
+        year |
+       2019  |  -9.175232   2.123021    -4.32   0.000     -13.4416   -4.908862
+             |
+       _cons |   64.16488   4.834698    13.27   0.000     54.44919    73.88057
+-------------+----------------------------------------------------------------
+      stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      43.05
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8990
+                                                  Adj R-squared   =     0.7919
+                                                  Root MSE        =     3.4736
+
+-----------------------------------------------------------------------------------
+                  |               Robust
+ brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------+----------------------------------------------------------------
+p50wage_all_ratio |   .3591607   .2066942     1.74   0.089    -.0562067    .7745282
+                  |
+             year |
+            2019  |  -7.735145    1.13791    -6.80   0.000    -10.02186   -5.448429
+                  |
+            _cons |    39.1478   16.21749     2.41   0.020     6.557531    71.73806
+------------------+----------------------------------------------------------------
+           stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      30.55
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8798
+                                                  Adj R-squared   =     0.7522
+                                                  Root MSE        =     3.2603
+
+-----------------------------------------------------------------------------------
+                  |               Robust
+ brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------+----------------------------------------------------------------
+p50wage_all_ratio |   .6476336    .351395     1.84   0.071    -.0585211    1.353788
+                  |
+             year |
+            2019  |  -10.03584   1.739308    -5.77   0.000    -13.53111   -6.540567
+                  |
+            _cons |   15.71999   28.27013     0.56   0.581    -41.09097    72.53094
+------------------+----------------------------------------------------------------
+           stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      50.86
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.9011
+                                                  Adj R-squared   =     0.7961
+                                                  Root MSE        =     3.4387
+
+-----------------------------------------------------------------------------------
+                  |               Robust
+ brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------+----------------------------------------------------------------
+p75wage_all_ratio |   .4571884   .2882014     1.59   0.119     -.121974    1.036351
+                  |
+             year |
+            2019  |  -7.785801   1.364637    -5.71   0.000    -10.52814   -5.043461
+                  |
+            _cons |    32.7979   21.66564     1.51   0.136    -10.74083    76.33664
+------------------+----------------------------------------------------------------
+           stname |   absorbed                                      (51 categories)
+
+Linear regression, absorbing indicators           Number of obs   =        102
+                                                  F(   2,     49) =      33.19
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.8867
+                                                  Adj R-squared   =     0.7664
+                                                  Root MSE        =     3.1659
+
+-----------------------------------------------------------------------------------
+                  |               Robust
+ brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------+----------------------------------------------------------------
+p75wage_all_ratio |   .8616149   .3638041     2.37   0.022     .1305232    1.592707
+                  |
+             year |
+            2019  |  -10.15762   1.510897    -6.72   0.000    -13.19388   -7.121354
+                  |
+            _cons |   1.795267   27.87835     0.06   0.949    -54.22837     57.8189
+------------------+----------------------------------------------------------------
+           stname |   absorbed                                      (51 categories)
+
+.         
+. 
+. *** TOGETHER
+. *unweighted
+. local xvar larcall epop_all avg_grossrent very_somewhat_important ///
+>  hwsei_all stud_loan_cap child_asec p50wage_all_ratio p75wage_all_ratio 
+
+. areg brate1544_thsnds `xvar' i.year, r absorb(stname)
+
+Linear regression, absorbing indicators           Number of obs   =         86
+                                                  F(  10,     25) =      10.15
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.9354
+                                                  Adj R-squared   =     0.7804
+                                                  Root MSE        =     3.5362
+
+-----------------------------------------------------------------------------------------
+                        |               Robust
+       brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------------+----------------------------------------------------------------
+                larcall |  -.1278804    .370766    -0.34   0.733    -.8914872    .6357264
+               epop_all |  -.7569121   1.005477    -0.75   0.459     -2.82773    1.313906
+          avg_grossrent |  -30.03211   24.33158    -1.23   0.229    -80.14394    20.07972
+very_somewhat_important |   .0742568   .3363147     0.22   0.827    -.6183963    .7669099
+              hwsei_all |   4.605852   1.925261     2.39   0.025     .6407039    8.571001
+          stud_loan_cap |  -.4005291   1.596494    -0.25   0.804    -3.688569    2.887511
+             child_asec |   1.329209   1.928546     0.69   0.497    -2.642706    5.301123
+      p50wage_all_ratio |  -.0926959   .5379473    -0.17   0.865    -1.200619    1.015227
+      p75wage_all_ratio |   .7986283   .6238049     1.28   0.212     -.486122    2.083379
+                        |
+                   year |
+                  2019  |  -8.120365   8.526887    -0.95   0.350    -25.68182    9.441088
+                        |
+                  _cons |  -63.87262   66.51475    -0.96   0.346    -200.8623    73.11707
+------------------------+----------------------------------------------------------------
+                 stname |   absorbed                                      (51 categories)
+
+. 
+. *weighted
+. local xvar larcall epop_all avg_grossrent very_somewhat_important ///
+>  hwsei_all stud_loan_cap child_asec p50wage_all_ratio p75wage_all_ratio 
+
+. areg brate1544_thsnds `xvar' i.year  [pw=pop1544], r absorb(stname)
+
+Linear regression, absorbing indicators           Number of obs   =         86
+                                                  F(  10,     25) =      20.30
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.9368
+                                                  Adj R-squared   =     0.7850
+                                                  Root MSE        =     3.0062
+
+-----------------------------------------------------------------------------------------
+                        |               Robust
+       brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------------+----------------------------------------------------------------
+                larcall |   .2934062   .3388281     0.87   0.395    -.4044234    .9912358
+               epop_all |  -1.153099   1.205225    -0.96   0.348    -3.635307    1.329109
+          avg_grossrent |  -34.83817   16.31779    -2.13   0.043    -68.44529   -1.231055
+very_somewhat_important |   .1668992   .4034571     0.41   0.683    -.6640363    .9978347
+              hwsei_all |   4.166336   2.563698     1.63   0.117    -1.113698     9.44637
+          stud_loan_cap |   1.085226    2.05169     0.53   0.602    -3.140308     5.31076
+             child_asec |   2.424074   1.787496     1.36   0.187    -1.257342    6.105491
+      p50wage_all_ratio |   .1836201   .5647302     0.33   0.748    -.9794634    1.346704
+      p75wage_all_ratio |   .6423959   .6586727     0.98   0.339     -.714166    1.998958
+                        |
+                   year |
+                  2019  |  -16.04762   9.161888    -1.75   0.092    -34.91688    2.821638
+                        |
+                  _cons |  -40.42749   81.85432    -0.49   0.626    -209.0096    128.1546
+------------------------+----------------------------------------------------------------
+                 stname |   absorbed                                      (51 categories)
+
+. 
+. 
+. 
+. ********************* EXPORT SCATTERPLOT DATA *************************
+. preserve 
+
+. 
+. keep year stname fd_* pop1544 // pct*
+
+. keep if year==2019
+(51 observations deleted)
+
+. drop fd_brate1544 fd_hwsei_all 
+
+. 
+. *(rename some variables to make them more self-explanatory)
+. rename fd_stud_loan_cap fd_stud_debt_cap
+
+. rename fd_child2 fd_avg_childcare_exp_cex
+
+. order stname fd_brate
+
+. drop year
+
+. export delimited $ft_output_dir/long_term_scatterplot_variables_2019.csv, replace 
+file D:\fertility-data\fertility-replication-sept-revision\output/long_term_scatterplot_variables_
+> 2019.csv saved
+
+. 
+. *unweighted scatterplot
+. foreach var in larcall epop_all avg_grossrent child_asec stud_debt_cap ///
+>  very_somewhat_important p50wage_all_ratio {
+  2. scatter fd_brate1544_thsnds fd_`var', mlabel(stname) || || lfit  fd_brate1544_thsnds fd_`var'
+  3. graph export $ft_output_dir/fig_8_`var'.png, replace
+  4. }
+(note: scheme plain not found, using s2color)
+(file D:\fertility-data\fertility-replication-sept-revision\output/fig_8_larcall.png written in PN
+> G format)
+(note: scheme plain not found, using s2color)
+(file D:\fertility-data\fertility-replication-sept-revision\output/fig_8_epop_all.png written in P
+> NG format)
+(note: scheme plain not found, using s2color)
+(file D:\fertility-data\fertility-replication-sept-revision\output/fig_8_avg_grossrent.png written
+>  in PNG format)
+(note: scheme plain not found, using s2color)
+(file D:\fertility-data\fertility-replication-sept-revision\output/fig_8_child_asec.png written in
+>  PNG format)
+(note: scheme plain not found, using s2color)
+(file D:\fertility-data\fertility-replication-sept-revision\output/fig_8_stud_debt_cap.png written
+>  in PNG format)
+(note: scheme plain not found, using s2color)
+(file D:\fertility-data\fertility-replication-sept-revision\output/fig_8_very_somewhat_important.p
+> ng written in PNG format)
+(note: scheme plain not found, using s2color)
+(file D:\fertility-data\fertility-replication-sept-revision\output/fig_8_p50wage_all_ratio.png wri
+> tten in PNG format)
+
+. 
+. *weighted regressions in first-difference specification (Identical to reg with state/year F.E ab
+> ove)
+. foreach var in fd_larcall fd_epop_all fd_avg_grossrent fd_avg_childcare_exp fd_child_asec fd_stu
+> d_debt_cap ///
+>  fd_very_somewhat_important fd_p50wage_all_ratio fd_p75wage_all_ratio {
+  2. reg fd_brate1544_thsnds `var' [pw=pop1544], r
+  3. }
+(sum of wgt is   2.5291e+08)
+
+Linear regression                                      Number of obs =      35
+                                                       F(  1,    33) =    7.30
+                                                       Prob > F      =  0.0108
+                                                       R-squared     =  0.1882
+                                                       Root MSE      =   4.529
+
+------------------------------------------------------------------------------
+             |               Robust
+fd_brate15~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+  fd_larcall |   .7304263   .2703181     2.70   0.011       .18046    1.280393
+       _cons |  -11.63422   1.788753    -6.50   0.000    -15.27346   -7.994971
+------------------------------------------------------------------------------
+(sum of wgt is   3.1920e+08)
+
+Linear regression                                      Number of obs =      51
+                                                       F(  1,    49) =    0.86
+                                                       Prob > F      =  0.3588
+                                                       R-squared     =  0.0217
+                                                       Root MSE      =  4.7471
+
+------------------------------------------------------------------------------
+             |               Robust
+fd_brate15~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------+----------------------------------------------------------------
+ fd_epop_all |   .5566371   .6009449     0.93   0.359    -.6510069    1.764281
+       _cons |  -8.214548   .9838433    -8.35   0.000    -10.19165   -6.237441
+------------------------------------------------------------------------------
+(sum of wgt is   3.1920e+08)
+
+Linear regression                                      Number of obs =      51
+                                                       F(  1,    49) =    2.36
+                                                       Prob > F      =  0.1313
+                                                       R-squared     =  0.0825
+                                                       Root MSE      =  4.5974
+
+----------------------------------------------------------------------------------
+                 |               Robust
+fd_brate1544_t~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-----------------+----------------------------------------------------------------
+fd_avg_grossrent |  -19.49121   12.70019    -1.53   0.131     -45.0132    6.030783
+           _cons |   -5.12051   1.467355    -3.49   0.001    -8.069271   -2.171749
+----------------------------------------------------------------------------------
+(sum of wgt is   3.0095e+08)
+
+Linear regression                                      Number of obs =      39
+                                                       F(  1,    37) =    1.30
+                                                       Prob > F      =  0.2607
+                                                       R-squared     =  0.0275
+                                                       Root MSE      =  4.7291
+
+------------------------------------------------------------------------------------------
+                         |               Robust
+     fd_brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-------------------------+----------------------------------------------------------------
+fd_avg_childcare_exp_cex |   .3693453    .323361     1.14   0.261    -.2858464    1.024537
+                   _cons |  -8.464328   1.396872    -6.06   0.000    -11.29466   -5.633996
+------------------------------------------------------------------------------------------
+(sum of wgt is   3.1920e+08)
+
+Linear regression                                      Number of obs =      51
+                                                       F(  1,    49) =    0.63
+                                                       Prob > F      =  0.4303
+                                                       R-squared     =  0.0175
+                                                       Root MSE      =  4.7575
+
+-------------------------------------------------------------------------------
+              |               Robust
+fd_brate154~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+--------------+----------------------------------------------------------------
+fd_child_asec |   .7450661   .9368375     0.80   0.430    -1.137579    2.627711
+        _cons |  -9.175232   2.123021    -4.32   0.000     -13.4416   -4.908862
+-------------------------------------------------------------------------------
+(sum of wgt is   3.1920e+08)
+
+Linear regression                                      Number of obs =      51
+                                                       F(  1,    49) =    1.01
+                                                       Prob > F      =  0.3207
+                                                       R-squared     =  0.0477
+                                                       Root MSE      =  4.6836
+
+----------------------------------------------------------------------------------
+                 |               Robust
+fd_brate1544_t~s |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+-----------------+----------------------------------------------------------------
+fd_stud_debt_cap |   1.964829   1.958756     1.00   0.321     -1.97144    5.901097
+           _cons |  -13.13272   5.842933    -2.25   0.029    -24.87454   -1.390911
+----------------------------------------------------------------------------------
+(sum of wgt is   3.1920e+08)
+
+Linear regression                                      Number of obs =      51
+                                                       F(  1,    49) =    2.85
+                                                       Prob > F      =  0.0976
+                                                       R-squared     =  0.0761
+                                                       Root MSE      =  4.6134
+
+--------------------------------------------------------------------------------------------
+                           |               Robust
+       fd_brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+---------------------------+----------------------------------------------------------------
+fd_very_somewhat_important |  -.4759707   .2818326    -1.69   0.098    -1.042335    .0903932
+                     _cons |  -9.739306    1.86354    -5.23   0.000    -13.48423   -5.994381
+--------------------------------------------------------------------------------------------
+(sum of wgt is   3.1920e+08)
+
+Linear regression                                      Number of obs =      51
+                                                       F(  1,    49) =    3.40
+                                                       Prob > F      =  0.0714
+                                                       R-squared     =  0.0771
+                                                       Root MSE      =  4.6108
+
+--------------------------------------------------------------------------------------
+                     |               Robust
+ fd_brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+---------------------+----------------------------------------------------------------
+fd_p50wage_all_ratio |   .6476336    .351395     1.84   0.071    -.0585211    1.353788
+               _cons |  -10.03584   1.739308    -5.77   0.000    -13.53111   -6.540567
+--------------------------------------------------------------------------------------
+(sum of wgt is   3.1920e+08)
+
+Linear regression                                      Number of obs =      51
+                                                       F(  1,    49) =    5.61
+                                                       Prob > F      =  0.0219
+                                                       R-squared     =  0.1298
+                                                       Root MSE      =  4.4772
+
+--------------------------------------------------------------------------------------
+                     |               Robust
+ fd_brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+---------------------+----------------------------------------------------------------
+fd_p75wage_all_ratio |   .8616149   .3638041     2.37   0.022     .1305232    1.592707
+               _cons |  -10.15762   1.510897    -6.72   0.000    -13.19388   -7.121354
+--------------------------------------------------------------------------------------
+
+. 
+. *weighted correlations 
+. foreach var in fd_larcall fd_avg_grossrent fd_very_somewhat_important fd_stud_debt_cap fd_child_
+> asec fd_avg_childcare_exp_cex ///
+>   fd_p50wage_all_ratio {
+  2. pwcorr fd_brate1544_thsnds `var' [aw=pop1544], star(0.05)
+  3. }
+
+             | fd_bra~s fd_lar~l
+-------------+------------------
+fd_brate15~s |   1.0000 
+  fd_larcall |   0.4338*  1.0000 
+
+             | fd_bra~s fd_avg~t
+-------------+------------------
+fd_brate15~s |   1.0000 
+fd_avg_gro~t |  -0.2872*  1.0000 
+
+             | fd_bra~s fd_ver~t
+-------------+------------------
+fd_brate15~s |   1.0000 
+fd_very_so~t |  -0.2758   1.0000 
+
+             | fd_bra~s fd_stu~p
+-------------+------------------
+fd_brate15~s |   1.0000 
+fd_stud_de~p |   0.2185   1.0000 
+
+             | fd_bra~s fd_chi~c
+-------------+------------------
+fd_brate15~s |   1.0000 
+fd_child_a~c |   0.1321   1.0000 
+
+             | fd_bra~s fd_avg~x
+-------------+------------------
+fd_brate15~s |   1.0000 
+fd_avg_chi~x |   0.1659   1.0000 
+
+             | fd_bra~s fd_p50~o
+-------------+------------------
+fd_brate15~s |   1.0000 
+fd_p50wage~o |   0.2777*  1.0000 
+
+. 
+. restore
+
+. 
+. *weighted regression toghether, only including variables in scatterplot
+. local xvar_scatter larcall avg_grossrent very_somewhat_important stud_loan_cap child_asec ///
+>   p50wage_all_ratio
+
+. areg brate1544_thsnds `xvar_scatter' i.year  [pw=pop1544], r absorb(stname)
+
+Linear regression, absorbing indicators           Number of obs   =         86
+                                                  F(   7,     28) =      27.40
+                                                  Prob > F        =     0.0000
+                                                  R-squared       =     0.9269
+                                                  Adj R-squared   =     0.7780
+                                                  Root MSE        =     3.0546
+
+-----------------------------------------------------------------------------------------
+                        |               Robust
+       brate1544_thsnds |      Coef.   Std. Err.      t    P>|t|     [95% Conf. Interval]
+------------------------+----------------------------------------------------------------
+                larcall |   .5464396   .3143605     1.74   0.093    -.0974987    1.190378
+          avg_grossrent |   -29.7248   14.48872    -2.05   0.050     -59.4036   -.0459914
+very_somewhat_important |   .1623167   .4036622     0.40   0.691    -.6645478    .9891812
+          stud_loan_cap |   2.397212   1.844731     1.30   0.204    -1.381548    6.175973
+             child_asec |   2.537615   1.254078     2.02   0.053    -.0312478    5.106478
+      p50wage_all_ratio |   .3330773    .494124     0.67   0.506    -.6790898    1.345244
+                        |
+                   year |
+                  2019  |  -19.85902   7.558511    -2.63   0.014    -35.34193   -4.376113
+                        |
+                  _cons |   33.76751   61.78693     0.55   0.589    -92.79728    160.3323
+------------------------+----------------------------------------------------------------
+                 stname |   absorbed                                      (51 categories)
+
+. 
+. 
+. ****************** ESTIMATE PERCENT OF DECLINE EXPLAINED ********************* 
+. ******************  GIVEN BETAS & CHANGE IN X-VARIABLE *********************
+. 
+. *CHANGES IN X-VARIABLES BETWEEN EARLY AND LATER PERIODS
+. local xvar larcall epop_all avg_grossrent very_somewhat_important ///
+>  hwsei_all stud_loan_cap child_asec p50wage_all_ratio p75wage_all_ratio 
+
+. foreach var in `xvar' {
+  2. sum `var' if year==2004 [aw=pop1544]
+  3. sum `var' if year==2019 [aw=pop1544]
+  4. } 
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+     larcall |      50   309584755    5.544078   1.453745   2.649329   8.730213
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+     larcall |      36   254234847    10.67986   2.687825   5.580928   19.10883
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+    epop_all |      51   310881999    77.09174   2.364238   70.41199   86.70245
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+    epop_all |      51   319201080    78.30371   2.581678   68.12247   87.87409
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+avg_grossr~t |      51   310881999    .9338722   .2102805   .5293275   1.284252
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+avg_grossr~t |      51   319201080    1.057768   .2590215   .5983222   1.590148
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+very_somew~t |      51   310881999    82.55514   5.759577   65.85666   96.49867
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+very_somew~t |      51   319201080    77.99938   6.406134         57         90
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+   hwsei_all |      51   310881999    32.60479   1.598978   29.04808   39.15819
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+   hwsei_all |      51   319201080     33.0699   1.782993   29.68755   41.44654
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+stud_loan_~p |      51   310881999    2.520788   .4899507   1.689544   7.203669
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+stud_loan_~p |      51   319201080    5.352277   .8484795   3.571859   13.13403
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+  child_asec |      51   310881999    5.018838   1.098564   2.836616   11.63469
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+  child_asec |      51   319201080    7.188872   1.511784   4.279337   15.00688
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+p50wage_al~o |      51   310881999    80.47443   4.502285   64.43799   94.51019
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+p50wage_al~o |      51   319201080    84.40219    4.91717   71.18116   91.93434
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+p75wage_al~o |      51   310881999    76.71575   3.198108   64.51613    84.4186
+
+    Variable |     Obs      Weight        Mean   Std. Dev.       Min        Max
+-------------+-----------------------------------------------------------------
+p75wage_al~o |      51   319201080    79.74349   4.264122    66.1974   88.57143
+
+. 
+. log close
+      name:  <unnamed>
+       log:  D:\fertility-data\fertility-replication-sept-revision\output\logs\section3_c_regressi
+> ons.log
+  log type:  text
+ closed on:  15 Sep 2021, 01:51:58
+--------------------------------------------------------------------------------------------------
