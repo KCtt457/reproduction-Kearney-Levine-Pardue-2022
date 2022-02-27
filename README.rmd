@@ -1,0 +1,3 @@
+Code and data reproduction package from Kearney, Levine and Pardue (2022)'s paper The Puzzle of Falling US Birth Rates since the Great Recession.
+
+Note: not all data files were uploaded since it was too large
